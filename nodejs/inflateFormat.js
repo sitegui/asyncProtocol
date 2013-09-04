@@ -2,10 +2,13 @@
 function inflateFormat(format) {
 	var i, level, c, child, parent, r
 	
-	if (!format.match(/^[uifts()]+$/))
+	format = format || ""
+	
+	if (!format.match(/^[uifts()]*$/))
 		throw new Error("Invalid format: "+format)
 	
 	r = []
+	r.formatString = format
 	level = r
 	level.parent = null
 	
@@ -26,7 +29,7 @@ function inflateFormat(format) {
 			level.push(c)
 	}
 	
-	if (!level.length || level != r)
+	if (level != r)
 		throw new Error("Invalid format: "+format)
 	
 	delete level.parent

@@ -1,9 +1,80 @@
 var DataBuffer = require("./DataBuffer.js")
+var DataArray = require("./DataArray.js")
 
 // Creates a new Data object to store encoded data in the protocol format
 function Data() {
 	this.buffer = new DataBuffer
 	this.format = ""
+}
+
+// Transform a Data, DataArray, string, null or undefined into a Data object
+Data.toData = function (x) {
+	var data
+	if (x instanceof Data)
+		return x
+	else {
+		data = new Data
+		if (x instanceof DataArray)
+			data.addDataArray(x)
+		else if (typeof x == "string")
+			data.addString(x)
+		else if (x !== null && x !== undefined)
+			throw new TypeError("Invalid type to convert to coded Buffer")
+		return data
+	}
+}
+
+// Creates and returns a Buffer with the encoded unsigned integer
+Data.Uint2Buffer = function (u) {
+	var buffer, i
+	
+	// Validates the input
+	if (Math.round(u) != u || u > Data.MAX_DOUBLE_INT || u < 0)
+		throw new TypeError("Unsigned integer expected")
+	
+	// First byte
+	if (u <= Data.MAX_UINT_1_B) {
+		// Fast path
+		buffer = new Buffer(1)
+		buffer[0] = Data.OFFSET_1_B+(u&Data.MASK_7_B)
+		return buffer
+	} else if (u <= Data.MAX_UINT_2_B) {
+		buffer = new Buffer(2)
+		buffer[0] = Data.OFFSET_2_B+(u&Data.MASK_6_B)
+		u >>= 6
+	} else if (u <= Data.MAX_UINT_3_B) {
+		buffer = new Buffer(3)
+		buffer[0] = Data.OFFSET_3_B+(u&Data.MASK_5_B)
+		u >>= 5
+	} else if (u <= Data.MAX_UINT_4_B) {
+		buffer = new Buffer(4)
+		buffer[0] = Data.OFFSET_4_B+(u&Data.MASK_4_B)
+		u >>= 4
+	} else if (u <= Data.MAX_UINT_5_B) {
+		buffer = new Buffer(5)
+		buffer[0] = Data.OFFSET_5_B+(u>Data.MAX_INT ? u%_POWS2[3] : u&Data.MASK_3_B)
+		u = u>Data.MAX_INT ? Math.floor(u/8) : u>>3
+	} else if (u <= Data.MAX_UINT_6_B) {
+		buffer = new Buffer(6)
+		buffer[0] = Data.OFFSET_6_B+(u%_POWS2[2])
+		u = Math.floor(u/4)
+	} else if (u <= Data.MAX_UINT_7_B) {
+		buffer = new Buffer(7)
+		buffer[0] = Data.OFFSET_7_B+(u%_POWS2[1])
+		u = Math.floor(u/2)
+	} else {
+		buffer = new Buffer(8)
+		buffer[0] = Data.OFFSET_8_B
+	}
+	
+	// Other bytes
+	i = 1
+	while (u) {
+		buffer[i++] = u>Data.MAX_INT ? u%_POWS2[8] : u&Data.MASK_8_B
+		u = u>Data.MAX_INT ? Math.floor(u/256) : u>>8
+	}
+	
+	return buffer
 }
 
 // Appends a unsigned integer to the data
@@ -136,6 +207,12 @@ Data.prototype.addDataArray = function (a) {
 	this.buffer.append(a.buffer)
 	this.format = format+"("+a.format+")"
 	return this
+}
+
+// Appends another Data to this
+Data.prototype.addData = function (data) {
+	this.buffer.append(data.buffer)
+	this.format += data.format
 }
 
 // Appends an Array of unsigned integer

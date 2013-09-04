@@ -1,7 +1,7 @@
 // Creates a resizable Buffer with the given initial length
-// length can be omitted, in this case 256 will be used
+// length can be omitted, in this case 128 will be used
 function DataBuffer(length) {
-	this.buffer = new Buffer(length || 256) // allocated buffer
+	this.buffer = new Buffer(length || 128) // allocated buffer
 	this.length = 0 // number of used bytes
 }
 

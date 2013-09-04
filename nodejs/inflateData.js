@@ -9,19 +9,17 @@ function inflateData(buffer, format) {
 	var data = []
 	if (inflateData.readElement(buffer, 0, data, format) != buffer.length)
 		throw new Error("Unable to read data in the given format")
-	if (format.length == 1)
-		return data[0]
-	return data
+	return format.length>1 ? data : (format.length ? data[0] : null)
 }
 
 // Extracts a unsigned integer from the buffer (a Buffer) from the position offset to the data Array
-// Returns the new offset value or throws in case of error
+// Returns the new offset value or throws in case of error (RangeError means there isn't enough data in the buffer)
 inflateData.readUint = function (buffer, offset, data) {
 	var firstByte, u, length, i, shifts
 	
 	// Get the first byte
 	if (offset >= buffer.length)
-		throw new Error("Unable to extract unsigned integer from index "+offset)
+		throw new RangeError("Unable to extract unsigned integer from index "+offset)
 	firstByte = buffer[offset]
 	
 	// Get the total length and the first bits
@@ -55,7 +53,7 @@ inflateData.readUint = function (buffer, offset, data) {
 	
 	// Get the remaining bytes
 	if (offset+length >= buffer.length)
-		throw new Error("Unable to extract unsigned integer from index "+offset)
+		throw new RangeError("Unable to extract unsigned integer from index "+offset)
 	shifts = 7-length
 	for (i=1; i<=length; i++) {
 		u += (shifts < 24) ? (buffer[offset+i] << shifts) : (buffer[offset+i] * _POWS2[shifts])
