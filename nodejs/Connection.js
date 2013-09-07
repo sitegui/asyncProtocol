@@ -138,20 +138,24 @@ Connection.prototype._onreadable = function () {
 		return
 	that._cache = Buffer.concat([that._cache, buffer], that._cache.length+buffer.length)
 	
-	// Try to read the message
-	try {
+	// Try to read messages
+	while (true) {
 		byteLength = []
-		offset = inflateData.readUint(that._cache, 0, byteLength)
+		try {
+			offset = inflateData.readUint(that._cache, 0, byteLength)
+		} catch (e) {
+			// We need to wait for more data
+			if (e instanceof RangeError)
+				break
+			throw e
+		}
 		byteLength = byteLength[0]
 		if (that._cache.length >= offset+byteLength) {
 			message = that._cache.slice(offset, offset+byteLength)
 			that._cache = that._cache.slice(offset+byteLength)
 			that._processMessage(message)
-		}
-	} catch (e) {
-		// We need to wait for more data
-		if (!(e instanceof RangeError))
-			throw e
+		} else
+			break
 	}
 }
 
@@ -183,24 +187,28 @@ Connection.prototype._processMessage = function (message) {
 	var aux, type, callID, offset
 	
 	// Extracts the message type and sequence id
-	aux = []
-	offset = inflateData.readUint(message, 0, aux)
-	offset = inflateData.readUint(message, offset, aux)
-	type = aux[0]
-	callID = aux[1]
-	
-	if (type)
-		// A call from the other side
-		this._processCall(callID, type, message.slice(offset))
-	else {
+	try {
+		aux = []
+		offset = inflateData.readUint(message, 0, aux)
 		offset = inflateData.readUint(message, offset, aux)
-		type = aux[2]
+		type = aux[0]
+		callID = aux[1]
+	
 		if (type)
-			// An exception from the other side
-			this._processException(callID, type, message.slice(offset))
-		else
-			// A return from the other side
-			this._processReturn(callID, message.slice(offset))
+			// A call from the other side
+			this._processCall(callID, type, message.slice(offset))
+		else {
+			offset = inflateData.readUint(message, offset, aux)
+			type = aux[2]
+			if (type)
+				// An exception from the other side
+				this._processException(callID, type, message.slice(offset))
+			else
+				// A return from the other side
+				this._processReturn(callID, message.slice(offset))
+		}
+	} catch (e) {
+		this._protocolError()
 	}
 }
 
