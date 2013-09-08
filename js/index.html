@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Untitled Document</title>
+<title>Browser client test</title>
 <script src="DataBuffer.js"></script>
 <script src="DataArray.js"></script>
 <script src="Data.js"></script>
@@ -31,21 +31,20 @@ var log2 = function (qual) {
 	}
 }
 
-var conn = new WebSocket("ws://192.168.1.150:8002")
+var conn = new Connection("ws://192.168.1.150:8002")
 conn.onopen = function () {
 	var i
 	console.log("Connected")
-	conn = new Connection(conn, true)
 	
 	for (i=0; i<10; i++)
-		conn.sendCall(CC_SUM, new Data().addInt(i).addInt(i), log(i), log2(i), 3e3)
-	conn.on("close", function () {
-		console.log("Closed")
-	})
-	conn.on("call", function (type, data, answer) {
-		if (type == SC_ORANGE)
-			answer(data.toUpperCase())
-	})
+		conn.sendCall(CC_SUM, new Data().addInt(i).addInt(i), log(i), log2(i))
+}
+conn.onclose = function () {
+	console.log("Closed")
+}
+conn.oncall = function (type, data, answer) {
+	if (type == SC_ORANGE)
+		answer(data.toUpperCase())
 }
 </script>
 </head>

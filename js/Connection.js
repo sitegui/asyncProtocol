@@ -1,8 +1,8 @@
-// Wrap a given WebSocket connection with the asyncProtocol
-// Events: call(type, data, answer), close()
-function Connection(webSocket) {
+// Creates a new WebSocket connection with the asyncProtocol
+// Events: open(), call(type, data, answer), close()
+function Connection(url) {
 	// Store the underlying webSocket
-	this.webSocket = webSocket
+	this.webSocket = new WebSocket(url)
 	
 	// Store the last received and sent auto-increment ids
 	this._lastReceivedID = 0
@@ -13,9 +13,10 @@ function Connection(webSocket) {
 	
 	// Set listeners for webSocket events
 	this.webSocket.that = this
+	this.webSocket.binaryType = "arraybuffer"
 	this.webSocket.onclose = this._onclose
-	this.webSocket.onerror = this._onerror
 	this.webSocket.onmessage = this._processMessage
+	this.webSocket.onopen = this._onopen
 }
 
 // Register a new type of call that the server can make
@@ -67,12 +68,12 @@ Connection.prototype.sendCall = function (type, data, onreturn, onexception, tim
 		throw new Error("Invalid data type '"+data.format+"' for call "+type)
 	
 	// Creates the protocol meta-data
-	data = data.toBuffer()
-	meta = (new Data).addUint(type).addUint(++this._lastSentID).toBuffer()
-	length = (new Data).addUint(meta.length+data.length).toBuffer()
+	meta = (new Data).addUint(type).addUint(++this._lastSentID)
+	length = (new Data).addUint(meta.buffer.length+data.buffer.length)
+	
 	
 	// Send the message
-	this.webSocket.send(new Uint8Array([length, meta, data]).buffer)
+	this.webSocket.send(length.addData(meta).addData(data).toBuffer())
 	
 	// Set timeout
 	timeout = timeout===undefined ? 60e3 : timeout
@@ -109,8 +110,10 @@ Connection.prototype._getTimeoutCallback = function () {
 	}
 }
 
-// Let the connection be closed
-Connection.prototype._onerror = function (err) {
+// Inform the connection has been established
+Connection.prototype._onopen = function () {
+	if (this.that.onopen)
+		this.that.onopen.call(this.that)
 }
 
 // Inform the connection has been closed (send -1 exception to every pending call)
@@ -148,25 +151,31 @@ Connection.prototype._processMessage = function (message) {
 	
 		if (type)
 			// A call from the other side
-			this._processCall(callID, type, message.subarray(offset))
+			this.that._processCall(callID, type, message.subarray(offset))
 		else {
 			offset = inflateData.readUint(message, offset, aux)
 			type = aux[2]
 			if (type)
 				// An exception from the other side
-				this._processException(callID, type, message.subarray(offset))
+				this.that._processException(callID, type, message.subarray(offset))
 			else
 				// A return from the other side
-				this._processReturn(callID, message.subarray(offset))
+				this.that._processReturn(callID, message.subarray(offset))
 		}
 	} catch (e) {
-		this._protocolError()
+		this.that._protocolError()
 	}
 }
 
 // Process an incoming call
 Connection.prototype._processCall = function (callID, type, dataBuffer) {
 	var call, data, answer, answered, that = this
+	
+	// Check the sequence ID
+	if (callID != ++this._lastReceivedID) {
+		this._protocolError()
+		return
+	}
 	
 	// Get call definition
 	call = Connection._registeredServerCalls[type]
@@ -276,7 +285,7 @@ Connection.prototype._processException = function (callID, type, dataBuffer) {
 
 // Treats a protocol error (close the connection)
 Connection.prototype._protocolError = function () {
-	this.webSocket.close(1002)
+	this.webSocket.close()
 }
 
 // Sends an answer (return or exception)
@@ -284,10 +293,9 @@ Connection.prototype._sendAnswer = function (callID, exceptionType, data) {
 	var meta, length
 	
 	// Creates the buffers
-	data = data.toBuffer()
-	meta = (new Data).addUint(0).addUint(callID).addUint(exceptionType).toBuffer()
-	length = (new Data).addUint(meta.length+data.length).toBuffer()
+	meta = (new Data).addUint(0).addUint(callID).addUint(exceptionType)
+	length = (new Data).addUint(meta.buffer.length+data.buffer.length)
 	
 	// Send the message
-	this.webSocket.send(new Uint8Array([length, meta, data]).buffer)
+	this.webSocket.send(length.addData(meta).addData(data).toBuffer())
 }

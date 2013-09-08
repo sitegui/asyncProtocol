@@ -171,6 +171,7 @@ Data.prototype.addDataArray = function (a) {
 Data.prototype.addData = function (data) {
 	this.buffer.append(data.buffer)
 	this.format += data.format
+	return this
 }
 
 // Appends an Array of unsigned integer

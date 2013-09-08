@@ -216,6 +216,12 @@ Connection.prototype._processMessage = function (message) {
 Connection.prototype._processCall = function (callID, type, dataBuffer) {
 	var call, data, answer, answered, that = this
 	
+	// Check the sequence ID
+	if (callID != ++this._lastReceivedID) {
+		this._protocolError()
+		return
+	}
+	
 	// Get call definition
 	call = this.isClient ? Connection._registeredServerCalls[type] : Connection._registeredClientCalls[type]
 	if (!call) {
