@@ -1,5 +1,6 @@
 var net = require("net")
 var Connection = require("./Connection.js")
+var Data = require("./Data.js")
 
 var CC_U = Connection.registerClientCall(1, "u", "u")
 var CC_I = Connection.registerClientCall(2, "i", "i")

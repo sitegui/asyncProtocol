@@ -23,8 +23,13 @@ ws.createServer(function (conn) {
 	}
 	pair.on("error", nop)
 	conn.on("error", nop)
-	pair.on("close", close)
-	conn.on("close", close)
+	pair.on("close", function () {
+		conn.close()
+		oppened = false
+	})
+	conn.on("close", function () {
+		pair.end()
+	})
 	
 	// Set websocket listener
 	conn.on("binary", function (data) {
