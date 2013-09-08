@@ -1,5 +1,5 @@
 // Wrap a given WebSocket connection with the asyncProtocol
-// Events: error(err), call(type, data, answer), close()
+// Events: call(type, data, answer), close()
 function Connection(webSocket) {
 	// Store the underlying webSocket
 	this.webSocket = webSocket
@@ -117,7 +117,8 @@ Connection.prototype._onerror = function (err) {
 Connection.prototype._onclose = function () {
 	var i, call, that
 	that = this.that
-	that.emit("close")
+	if (that.onclose)
+		that.onclose.call(that)
 	for (i in that._calls)
 		// Foreach openned call, dispatch the error exception
 		if (that._calls.hasOwnProperty(i)) {
@@ -202,7 +203,8 @@ Connection.prototype._processCall = function (callID, type, dataBuffer) {
 	}
 	
 	// Emmits the "call" event
-	this.emit("call", type, data, answer)
+	if (this.oncall)
+		this.oncall.call(this, type, data, answer)
 }
 
 // Process a return

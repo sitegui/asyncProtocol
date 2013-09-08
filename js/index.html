@@ -1,8 +1,17 @@
-var net = require("net")
-var tls = require("tls")
-var Connection = require("./Connection.js")
-var Data = require("./Data.js")
-
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Untitled Document</title>
+<script src="DataBuffer.js"></script>
+<script src="DataArray.js"></script>
+<script src="Data.js"></script>
+<script src="Exception.js"></script>
+<script src="Token.js"></script>
+<script src="inflateFormat.js"></script>
+<script src="inflateData.js"></script>
+<script src="Connection.js"></script>
+<script>
 var CC_SUM = Connection.registerClientCall(1, "ii", "i")
 var CC_DIV = Connection.registerClientCall(2, "ii", "f")
 
@@ -22,10 +31,10 @@ var log2 = function (qual) {
 	}
 }
 
-var options = {host: "192.168.1.150", port: 8001, rejectUnauthorized: false}
-
-var conn = net.connect(options, function () {
+var conn = new WebSocket("ws://192.168.1.150:8002")
+conn.onopen = function () {
 	var i
+	console.log("Connected")
 	conn = new Connection(conn, true)
 	
 	for (i=0; i<10; i++)
@@ -37,4 +46,10 @@ var conn = net.connect(options, function () {
 		if (type == SC_ORANGE)
 			answer(data.toUpperCase())
 	})
-})
+}
+</script>
+</head>
+
+<body>
+</body>
+</html>

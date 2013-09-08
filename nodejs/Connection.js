@@ -1,6 +1,6 @@
 // Wrap a given socket connection with the asyncProtocol
 // isClient is a bool that indicates if this is the client-side (true) or server-side (false)
-// Events: error(err), call(type, data, answer), close()
+// Events: call(type, data, answer), close()
 function Connection(socket, isClient) {
 	// Store the underlying socket
 	this.socket = socket
@@ -145,9 +145,9 @@ Connection.prototype._onreadable = function () {
 			offset = inflateData.readUint(that._cache, 0, byteLength)
 		} catch (e) {
 			// We need to wait for more data
-			if (e instanceof RangeError)
-				break
-			throw e
+			if (!(e instanceof RangeError))
+				that._protocolError()
+			break
 		}
 		byteLength = byteLength[0]
 		if (that._cache.length >= offset+byteLength) {
