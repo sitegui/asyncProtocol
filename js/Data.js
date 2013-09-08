@@ -1,6 +1,3 @@
-var DataBuffer = require("./DataBuffer.js")
-var DataArray = require("./DataArray.js")
-
 // Creates a new Data object to store encoded data in the protocol format
 function Data() {
 	this.buffer = new DataBuffer
@@ -124,9 +121,9 @@ Data.prototype.addInt = function (i) {
 
 // Appends a float to the data
 Data.prototype.addFloat = function (f) {
-	var buffer = new Buffer(4)
-	buffer.writeFloatLE(f, 0)
-	this.buffer.append(buffer)
+	var buffer = new DataView(new ArrayBuffer(4))
+	buffer.setFloat32(0, f, true)
+	this.buffer.append(new Uint8Array(buffer.buffer))
 	this.format += "f"
 	return this
 }
@@ -140,7 +137,21 @@ Data.prototype.addToken = function (t) {
 
 // Appends a string to the data
 Data.prototype.addString = function (s) {
-	var buffer = new Buffer(s), format = this.format
+	var buffer, i, format, h, j
+	
+	// Extract to UTF-8 bytes
+	buffer = new DataBuffer
+	for (i=0; i<s.length; i++) {
+		if (s.charCodeAt(i) < 128)
+			buffer.append(s.charCodeAt(i))
+		else {
+			h = encodeURIComponent(s.charAt(i)).substr(1).split("%")
+			for (j=0; j<h.length; j++)
+				buffer.append(parseInt(h[j], 16))
+		}
+	}
+	
+	format = this.format
 	this.addUint(buffer.length)
 	this.buffer.append(buffer)
 	this.format = format+"s"
@@ -212,9 +223,9 @@ Data.prototype.addStringArray = function (array) {
 	return this
 }
 
-// Returns a Buffer with all the data stored
+// Returns a Uint8Array with all the data stored
 Data.prototype.toBuffer = function () {
-	return this.buffer.buffer.slice(0, this.buffer.length)
+	return this.buffer.buffer.subarray(0, this.buffer.length)
 }
 
 // Stores 2^i from i=0 to i=56
@@ -260,5 +271,3 @@ Data.MASK_5_B = _POWS2[0]+_POWS2[1]+_POWS2[2]+_POWS2[3]+_POWS2[4]
 Data.MASK_6_B = _POWS2[0]+_POWS2[1]+_POWS2[2]+_POWS2[3]+_POWS2[4]+_POWS2[5]
 Data.MASK_7_B = _POWS2[0]+_POWS2[1]+_POWS2[2]+_POWS2[3]+_POWS2[4]+_POWS2[5]+_POWS2[6]
 Data.MASK_8_B = _POWS2[0]+_POWS2[1]+_POWS2[2]+_POWS2[3]+_POWS2[4]+_POWS2[5]+_POWS2[6]+_POWS2[7]
-
-module.exports = Data

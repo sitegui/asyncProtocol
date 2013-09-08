@@ -1,7 +1,6 @@
 var net = require("net")
 var Connection = require("./Connection.js")
 var Data = require("./Data.js")
-var Exception = require("./Exception.js")
 
 var CC_SUM = Connection.registerClientCall(1, "ii", "i")
 var CC_DIV = Connection.registerClientCall(2, "ii", "f")

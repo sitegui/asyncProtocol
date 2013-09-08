@@ -1,13 +1,8 @@
-// Wrap a given socket connection with the asyncProtocol
-// isClient is a bool that indicates if this is the client-side (true) or server-side (false)
+// Wrap a given WebSocket connection with the asyncProtocol
 // Events: error(err), call(type, data, answer), close()
-function Connection(socket, isClient) {
-	// Store the underlying socket
-	this.socket = socket
-	this.isClient = Boolean(isClient)
-	
-	// Store incoming data
-	this._cache = new Buffer(0)
+function Connection(webSocket) {
+	// Store the underlying webSocket
+	this.webSocket = webSocket
 	
 	// Store the last received and sent auto-increment ids
 	this._lastReceivedID = 0
@@ -16,22 +11,12 @@ function Connection(socket, isClient) {
 	// List of calls waiting for an answer
 	this._calls = []
 	
-	// Set listeners for socket events
-	this.socket.that = this
-	this.socket.on("readable", this._onreadable)
-	this.socket.on("error", this._onerror)
-	this.socket.on("close", this._onclose)
+	// Set listeners for webSocket events
+	this.webSocket.that = this
+	this.webSocket.onclose = this._onclose
+	this.webSocket.onerror = this._onerror
+	this.webSocket.onmessage = this._processMessage
 }
-
-// Export and require everything
-module.exports = Connection
-var events = require("events")
-var util = require("util")
-var inflateData = require("./inflateData.js")
-var inflateFormat = require("./inflateFormat.js")
-var Data = require("./Data.js")
-var Exception = require("./Exception.js")
-util.inherits(Connection, events.EventEmitter)
 
 // Register a new type of call that the server can make
 Connection.registerServerCall = function (id, argsFormat, returnFormat) {
@@ -65,17 +50,16 @@ Connection.registerException = function (id, dataFormat) {
 
 // Send a call to the other side
 // type is the call-type id (int)
-// data is the argument data (optional, must be a Data, DataArray or string. Must match the format registered with Connection.registerServerCall or Connection.registerClientCall)
+// data is the argument data (optional, must be a Data, DataArray or string. Must match the format registered with Connection.registerClientCall)
 // onreturn(data) is a callback (optional)
 // onexception(type, data) is a callback (optional)
 // timeout is the maximum time this endpoint will wait for a return/exception (optional, default: 60e3)
 // Inside the callbacks, this will be the Connection object
 Connection.prototype.sendCall = function (type, data, onreturn, onexception, timeout) {
-	var registeredCalls, meta, length, interval, call
+	var meta, length, interval, call
 	
 	// Validates the data
-	registeredCalls = this.isClient ? Connection._registeredClientCalls : Connection._registeredServerCalls
-	call = registeredCalls[type]
+	call = Connection._registeredClientCalls[type]
 	if (!call)
 		throw new Error("Invalid call type "+type)
 	data = Data.toData(data)
@@ -88,9 +72,7 @@ Connection.prototype.sendCall = function (type, data, onreturn, onexception, tim
 	length = (new Data).addUint(meta.length+data.length).toBuffer()
 	
 	// Send the message
-	this.socket.write(length)
-	this.socket.write(meta)
-	this.socket.write(data)
+	this.webSocket.send(new Uint8Array([length, meta, data]).buffer)
 	
 	// Set timeout
 	timeout = timeout===undefined ? 60e3 : timeout
@@ -104,7 +86,7 @@ Connection.prototype.sendCall = function (type, data, onreturn, onexception, tim
 
 // Close the connection
 Connection.prototype.close = function () {
-	this.socket.end()
+	this.webSocket.close()
 }
 
 // Registered calls
@@ -124,38 +106,6 @@ Connection.prototype._getTimeoutCallback = function () {
 				call[2].call(that, 0, null)
 			delete that._calls[id]
 		}
-	}
-}
-
-// Fetch more data and try to extract a message
-Connection.prototype._onreadable = function () {
-	var buffer, byteLength, offset, message, that
-	
-	// Store the data
-	that = this.that
-	buffer = that.socket.read()
-	if (!buffer)
-		return
-	that._cache = Buffer.concat([that._cache, buffer], that._cache.length+buffer.length)
-	
-	// Try to read messages
-	while (true) {
-		byteLength = []
-		try {
-			offset = inflateData.readUint(that._cache, 0, byteLength)
-		} catch (e) {
-			// We need to wait for more data
-			if (e instanceof RangeError)
-				break
-			throw e
-		}
-		byteLength = byteLength[0]
-		if (that._cache.length >= offset+byteLength) {
-			message = that._cache.slice(offset, offset+byteLength)
-			that._cache = that._cache.slice(offset+byteLength)
-			that._processMessage(message)
-		} else
-			break
 	}
 }
 
@@ -182,11 +132,12 @@ Connection.prototype._onclose = function () {
 	that._calls = {}
 }
 
-// Process the incoming message (a Buffer)
+// Process the incoming message (a MessageEvent)
 Connection.prototype._processMessage = function (message) {
 	var aux, type, callID, offset
 	
 	// Extracts the message type and sequence id
+	message = new Uint8Array(message.data)
 	try {
 		aux = []
 		offset = inflateData.readUint(message, 0, aux)
@@ -196,16 +147,16 @@ Connection.prototype._processMessage = function (message) {
 	
 		if (type)
 			// A call from the other side
-			this._processCall(callID, type, message.slice(offset))
+			this._processCall(callID, type, message.subarray(offset))
 		else {
 			offset = inflateData.readUint(message, offset, aux)
 			type = aux[2]
 			if (type)
 				// An exception from the other side
-				this._processException(callID, type, message.slice(offset))
+				this._processException(callID, type, message.subarray(offset))
 			else
 				// A return from the other side
-				this._processReturn(callID, message.slice(offset))
+				this._processReturn(callID, message.subarray(offset))
 		}
 	} catch (e) {
 		this._protocolError()
@@ -217,7 +168,7 @@ Connection.prototype._processCall = function (callID, type, dataBuffer) {
 	var call, data, answer, answered, that = this
 	
 	// Get call definition
-	call = this.isClient ? Connection._registeredServerCalls[type] : Connection._registeredClientCalls[type]
+	call = Connection._registeredServerCalls[type]
 	if (!call) {
 		this._protocolError()
 		return
@@ -323,7 +274,7 @@ Connection.prototype._processException = function (callID, type, dataBuffer) {
 
 // Treats a protocol error (close the connection)
 Connection.prototype._protocolError = function () {
-	this.socket.end()
+	this.webSocket.close(1002)
 }
 
 // Sends an answer (return or exception)
@@ -336,7 +287,5 @@ Connection.prototype._sendAnswer = function (callID, exceptionType, data) {
 	length = (new Data).addUint(meta.length+data.length).toBuffer()
 	
 	// Send the message
-	this.socket.write(length)
-	this.socket.write(meta)
-	this.socket.write(data)
+	this.webSocket.send(new Uint8Array([length, meta, data]).buffer)
 }
