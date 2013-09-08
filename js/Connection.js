@@ -16,7 +16,9 @@ function Connection(url) {
 	this.webSocket.binaryType = "arraybuffer"
 	this.webSocket.onclose = this._onclose
 	this.webSocket.onmessage = this._processMessage
-	this.webSocket.onopen = this._onopen
+	
+	// True if the connection is open
+	this._ready = false
 }
 
 // Register a new type of call that the server can make
@@ -48,6 +50,11 @@ Connection.registerException = function (id, dataFormat) {
 	Connection._registeredExceptions[id] = inflateFormat(dataFormat)
 	return id
 }
+
+// Returns if the connection is oppened and ready
+Object.defineProperty(Connection.prototype, "ready", {get: function () {
+	return this._ready
+}})
 
 // Send a call to the other side
 // type is the call-type id (int)
@@ -120,8 +127,6 @@ Connection.prototype._onopen = function () {
 Connection.prototype._onclose = function () {
 	var i, call, that
 	that = this.that
-	if (that.onclose)
-		that.onclose.call(that)
 	for (i in that._calls)
 		// Foreach openned call, dispatch the error exception
 		if (that._calls.hasOwnProperty(i)) {
@@ -134,11 +139,22 @@ Connection.prototype._onclose = function () {
 	
 	// Clear everything
 	that._calls = {}
+	that._ready = false
+	if (that.onclose)
+		that.onclose.call(that)
 }
 
 // Process the incoming message (a MessageEvent)
 Connection.prototype._processMessage = function (message) {
-	var aux, type, callID, offset
+	var aux, type, callID, offset, that = this.that
+	
+	// First message: the connection is ready
+	if (!that._ready) {
+		that._ready = true
+		if (that.onopen)
+			that.onopen.call(that)
+		return
+	}
 	
 	// Extracts the message type and sequence id
 	message = new Uint8Array(message.data)
@@ -151,19 +167,19 @@ Connection.prototype._processMessage = function (message) {
 	
 		if (type)
 			// A call from the other side
-			this.that._processCall(callID, type, message.subarray(offset))
+			that._processCall(callID, type, message.subarray(offset))
 		else {
 			offset = inflateData.readUint(message, offset, aux)
 			type = aux[2]
 			if (type)
 				// An exception from the other side
-				this.that._processException(callID, type, message.subarray(offset))
+				that._processException(callID, type, message.subarray(offset))
 			else
 				// A return from the other side
-				this.that._processReturn(callID, message.subarray(offset))
+				that._processReturn(callID, message.subarray(offset))
 		}
 	} catch (e) {
-		this.that._protocolError()
+		that._protocolError()
 	}
 }
 

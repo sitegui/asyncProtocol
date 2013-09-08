@@ -167,7 +167,6 @@ Connection.prototype._onerror = function (err) {
 Connection.prototype._onclose = function () {
 	var i, call, that
 	that = this.that
-	that.emit("close")
 	for (i in that._calls)
 		// Foreach openned call, dispatch the error exception
 		if (that._calls.hasOwnProperty(i)) {
@@ -180,6 +179,7 @@ Connection.prototype._onclose = function () {
 	
 	// Clear everything
 	that._calls = {}
+	that.emit("close")
 }
 
 // Process the incoming message (a Buffer)

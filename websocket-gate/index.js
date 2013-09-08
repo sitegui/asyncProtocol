@@ -18,7 +18,7 @@ ws.createServer(function (conn) {
 		conn.close()
 	})
 	conn.on("close", function () {
-		pair.close()
+		pair.end()
 	})
 	
 	// Set websocket listener
@@ -48,7 +48,7 @@ ws.createServer(function (conn) {
 			} catch (e) {
 				// We need to wait for more data
 				if (!(e instanceof RangeError)) {
-					pair.close()
+					pair.end()
 					conn.close()
 				}
 				break
@@ -62,16 +62,4 @@ ws.createServer(function (conn) {
 				break
 		}
 	})
-	
-	pair.once("connect", function () {
-		conn.sendText("connected")
-		conn.on("close", function () {
-			conn.pair.close()
-		})
-		conn.on("error", nop)
-		conn.on("binary", function () {
-		})
-	})
 }).listen(8002)
-
-
