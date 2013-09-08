@@ -6,31 +6,40 @@ function nop() {}
 
 // Create the server socket
 ws.createServer(function (conn) {
-	var pair, cache = new Buffer(0)
+	var pair, cache, oppened, close
 	
 	// Create the local connection
-	pair = net.connect(8001)
+	oppened = false
+	pair = net.connect(8001, function () {
+		oppened = true
+		conn.sendText("connected")
+	})
 	
 	// Set error/close listeners
+	close = function () {
+		oppened = false
+		conn.close()
+		pair.end()
+	}
 	pair.on("error", nop)
 	conn.on("error", nop)
-	pair.on("close", function () {
-		conn.close()
-	})
-	conn.on("close", function () {
-		pair.end()
-	})
+	pair.on("close", close)
+	conn.on("close", close)
 	
 	// Set websocket listener
 	conn.on("binary", function (data) {
-		data.on("readable", function () {
-			var buffer = data.read()
-			if (buffer)
-				conn.write(buffer)
-		})
+		if (!oppened)
+			close()
+		else
+			data.on("readable", function () {
+				var buffer = data.read()
+				if (buffer)
+					pair.write(buffer)
+			})
 	})
 	
 	// Set local connection listener
+	cache = new Buffer(0)
 	pair.on("readable", function () {
 		var buffer, byteLength, offset, message
 		
@@ -47,10 +56,8 @@ ws.createServer(function (conn) {
 				offset = inflateData.readUint(cache, 0, byteLength)
 			} catch (e) {
 				// We need to wait for more data
-				if (!(e instanceof RangeError)) {
-					pair.end()
-					conn.close()
-				}
+				if (!(e instanceof RangeError))
+					close()
 				break
 			}
 			byteLength = byteLength[0]
