@@ -116,7 +116,7 @@ inflateData.readFloat = function (buffer, offset, data) {
 	if (offset+4 > buffer.length)
 		throw new Error("Unable to extract float from index "+offset)
 	
-	data.push(new DataView(buffer.buffer).getFloat32(offset, true))
+	data.push(new DataView(buffer.buffer).getFloat32(buffer.byteOffset+offset, true))
 	return offset+4
 }
 
