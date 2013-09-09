@@ -1,11 +1,12 @@
-var DataBuffer = require("./DataBuffer.js")
-var DataArray = require("./DataArray.js")
-
 // Creates a new Data object to store encoded data in the protocol format
 function Data() {
 	this.buffer = new DataBuffer
 	this.format = ""
 }
+
+module.exports = Data
+var DataBuffer = require("./DataBuffer.js")
+var DataArray = require("./DataArray.js")
 
 // Transform a Data, DataArray, string, null or undefined into a Data object
 Data.toData = function (x) {
@@ -261,5 +262,3 @@ Data.MASK_5_B = _POWS2[0]+_POWS2[1]+_POWS2[2]+_POWS2[3]+_POWS2[4]
 Data.MASK_6_B = _POWS2[0]+_POWS2[1]+_POWS2[2]+_POWS2[3]+_POWS2[4]+_POWS2[5]
 Data.MASK_7_B = _POWS2[0]+_POWS2[1]+_POWS2[2]+_POWS2[3]+_POWS2[4]+_POWS2[5]+_POWS2[6]
 Data.MASK_8_B = _POWS2[0]+_POWS2[1]+_POWS2[2]+_POWS2[3]+_POWS2[4]+_POWS2[5]+_POWS2[6]+_POWS2[7]
-
-module.exports = Data

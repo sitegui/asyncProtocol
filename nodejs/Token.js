@@ -16,6 +16,8 @@ function Token(base) {
 			this.buffer[i] = Math.floor(256*Math.random())
 }
 
+module.exports = Token
+
 // Returns true if both token are equal to the given token
 Token.prototype.isEqual = function (token) {
 	var i
@@ -24,5 +26,3 @@ Token.prototype.isEqual = function (token) {
 			return false
 	return true
 }
-
-module.exports = Token

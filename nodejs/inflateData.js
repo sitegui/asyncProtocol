@@ -1,6 +1,3 @@
-var Data = require("./Data.js")
-var Token = require("./Token.js")
-
 // Inflates a given data based on its format
 // buffer is a Buffer
 // format is a InflatedFormat
@@ -11,6 +8,10 @@ function inflateData(buffer, format) {
 		throw new Error("Unable to read data in the given format")
 	return format.length>1 ? data : (format.length ? data[0] : null)
 }
+
+module.exports = inflateData
+var Data = require("./Data.js")
+var Token = require("./Token.js")
 
 // Extracts a unsigned integer from the buffer (a Buffer) from the position offset to the data Array
 // Returns the new offset value or throws in case of error (RangeError means there isn't enough data in the buffer)
@@ -206,5 +207,3 @@ var _POWS2 = (function () {
 	}
 	return r
 })()
-
-module.exports = inflateData

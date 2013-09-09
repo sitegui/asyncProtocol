@@ -1,11 +1,12 @@
-var DataBuffer = require("./DataBuffer.js")
-
 // Creates a new DataArray with the given format for each element
 function DataArray(format) {
 	this.buffer = new DataBuffer
 	this.format = format
 	this.length = 0 // number of elements
 }
+
+module.exports = DataArray
+var DataBuffer = require("./DataBuffer.js")
 
 // Appends a new data element to the array
 DataArray.prototype.addData = function (data) {
@@ -15,5 +16,3 @@ DataArray.prototype.addData = function (data) {
 	this.length++
 	return this
 }
-
-module.exports = DataArray

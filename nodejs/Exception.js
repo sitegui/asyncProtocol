@@ -1,6 +1,3 @@
-var Data = require("./Data.js")
-var Connection = require("./Connection.js")
-
 // Creates a new protocol exception, with the given type (int) e data
 // data (optional) must be a Data, DataArray or string
 // data must match the format registered with Connection.registerException
@@ -20,3 +17,5 @@ function Exception(type, data) {
 }
 
 module.exports = Exception
+var Data = require("./Data.js")
+var Connection = require("./Connection.js")

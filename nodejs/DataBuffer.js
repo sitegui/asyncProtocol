@@ -5,6 +5,8 @@ function DataBuffer(length) {
 	this.length = 0 // number of used bytes
 }
 
+module.exports = DataBuffer
+
 // Appends a byte (uint8 in a number) or a buffer (Buffer or DataBuffer) to this DataBuffer
 // Automatically increase the internal buffer size if needed
 DataBuffer.prototype.append = function (x) {
@@ -34,5 +36,3 @@ DataBuffer.prototype._alloc = function (amount) {
 		this._alloc(amount)
 	}
 }
-
-module.exports = DataBuffer
