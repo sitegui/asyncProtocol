@@ -1,5 +1,5 @@
 // Returns an Array representing a data format
-function inflateFormat(format) {
+aP.inflateFormat = function (format) {
 	var i, level, c, child, parent, r
 	
 	format = format || ""

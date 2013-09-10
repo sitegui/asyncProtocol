@@ -1,6 +1,6 @@
 // Creates a new WebSocket connection with the asyncProtocol
 // Events: open(), call(type, data, answer), close()
-function Connection(url) {
+function aP(url) {
 	// Store the underlying webSocket
 	this.webSocket = new WebSocket(url)
 	
@@ -22,63 +22,63 @@ function Connection(url) {
 }
 
 // Register a new type of call that the server can make
-Connection.registerServerCall = function (id, argsFormat, returnFormat) {
+aP.registerServerCall = function (id, argsFormat, returnFormat) {
 	if (Math.round(id) != id || id < 1)
 		throw new TypeError("id must be a non-zero unsigned integer")
-	if (id in Connection._registeredServerCalls)
+	if (id in aP._registeredServerCalls)
 		throw new Error("Unable to register server call "+id+", it has already been registered")
-	Connection._registeredServerCalls[id] = [inflateFormat(argsFormat), inflateFormat(returnFormat)]
+	aP._registeredServerCalls[id] = [aP.inflateFormat(argsFormat), aP.inflateFormat(returnFormat)]
 	return id
 }
 
 // Register a new type of call that clients can make
-Connection.registerClientCall = function (id, argsFormat, returnFormat) {
+aP.registerClientCall = function (id, argsFormat, returnFormat) {
 	if (Math.round(id) != id || id < 1)
 		throw new TypeError("id must be a non-zero unsigned integer")
-	if (id in Connection._registeredClientCalls)
+	if (id in aP._registeredClientCalls)
 		throw new Error("Unable to register client call "+id+", it has already been registered")
-	Connection._registeredClientCalls[id] = [inflateFormat(argsFormat), inflateFormat(returnFormat)]
+	aP._registeredClientCalls[id] = [aP.inflateFormat(argsFormat), aP.inflateFormat(returnFormat)]
 	return id
 }
 
 // Register a new type of exception
-Connection.registerException = function (id, dataFormat) {
+aP.registerException = function (id, dataFormat) {
 	if (Math.round(id) != id || id < 1)
 		throw new TypeError("id must be a non-zero unsigned integer")
-	if (id in Connection._registeredExceptions)
+	if (id in aP._registeredExceptions)
 		throw new Error("Unable to register exception "+id+", it has already been registered")
-	Connection._registeredExceptions[id] = inflateFormat(dataFormat)
+	aP._registeredExceptions[id] = aP.inflateFormat(dataFormat)
 	return id
 }
 
 // Returns if the connection is oppened and ready
-Object.defineProperty(Connection.prototype, "ready", {get: function () {
+Object.defineProperty(aP.prototype, "ready", {get: function () {
 	return this._ready
 }})
 
 // Send a call to the other side
 // type is the call-type id (int)
-// data is the argument data (optional, must be a Data, DataArray or string. Must match the format registered with Connection.registerClientCall)
+// data is the argument data (optional, must be a aP.Data, aP.DataArray or string. Must match the format registered with aP.registerClientCall)
 // onreturn(data) is a callback (optional)
 // onexception(type, data) is a callback (optional)
 // timeout is the maximum time this endpoint will wait for a return/exception (optional, default: 60e3)
-// Inside the callbacks, this will be the Connection object
-Connection.prototype.sendCall = function (type, data, onreturn, onexception, timeout) {
+// Inside the callbacks, this will be the aP object
+aP.prototype.sendCall = function (type, data, onreturn, onexception, timeout) {
 	var meta, length, interval, call
 	
 	// Validates the data
 	if (!this._ready)
 		throw new Error("The connection isn't ready")
-	call = Connection._registeredClientCalls[type]
+	call = aP._registeredClientCalls[type]
 	if (!call)
 		throw new Error("Invalid call type "+type)
-	data = Data.toData(data)
+	data = aP.Data.toData(data)
 	if (data.format != call[0].formatString)
 		throw new Error("Invalid data type '"+data.format+"' for call "+type)
 	
 	// Creates the protocol meta-data
-	meta = (new Data).addUint(type).addUint(++this._lastSentID)
-	length = (new Data).addUint(meta.buffer.length+data.buffer.length)
+	meta = (new aP.Data).addUint(type).addUint(++this._lastSentID)
+	length = (new aP.Data).addUint(meta.buffer.length+data.buffer.length)
 	
 	
 	// Send the message
@@ -95,17 +95,17 @@ Connection.prototype.sendCall = function (type, data, onreturn, onexception, tim
 }
 
 // Close the connection
-Connection.prototype.close = function () {
+aP.prototype.close = function () {
 	this.webSocket.close()
 }
 
 // Registered calls
-Connection._registeredServerCalls = {}
-Connection._registeredClientCalls = {}
-Connection._registeredExceptions = {}
+aP._registeredServerCalls = {}
+aP._registeredClientCalls = {}
+aP._registeredExceptions = {}
 
 // Returns a callback to treat the timeout
-Connection.prototype._getTimeoutCallback = function () {
+aP.prototype._getTimeoutCallback = function () {
 	var that = this, id = this._lastSentID
 	return function () {
 		call = that._calls[id]
@@ -120,7 +120,7 @@ Connection.prototype._getTimeoutCallback = function () {
 }
 
 // Inform the connection has been closed (send -1 exception to every pending call)
-Connection.prototype._onclose = function () {
+aP.prototype._onclose = function () {
 	var i, call, that
 	that = this.that
 	for (i in that._calls)
@@ -141,7 +141,7 @@ Connection.prototype._onclose = function () {
 }
 
 // Process the incoming message (a MessageEvent)
-Connection.prototype._processMessage = function (message) {
+aP.prototype._processMessage = function (message) {
 	var aux, type, callID, offset, that = this.that
 	
 	// First message: the connection is ready
@@ -156,8 +156,8 @@ Connection.prototype._processMessage = function (message) {
 	message = new Uint8Array(message.data)
 	try {
 		aux = []
-		offset = inflateData.readUint(message, 0, aux)
-		offset = inflateData.readUint(message, offset, aux)
+		offset = aP.inflateData.readUint(message, 0, aux)
+		offset = aP.inflateData.readUint(message, offset, aux)
 		type = aux[0]
 		callID = aux[1]
 	
@@ -165,7 +165,7 @@ Connection.prototype._processMessage = function (message) {
 			// A call from the other side
 			that._processCall(callID, type, message.subarray(offset))
 		else {
-			offset = inflateData.readUint(message, offset, aux)
+			offset = aP.inflateData.readUint(message, offset, aux)
 			type = aux[2]
 			if (type)
 				// An exception from the other side
@@ -180,7 +180,7 @@ Connection.prototype._processMessage = function (message) {
 }
 
 // Process an incoming call
-Connection.prototype._processCall = function (callID, type, dataBuffer) {
+aP.prototype._processCall = function (callID, type, dataBuffer) {
 	var call, data, answer, answered, that = this
 	
 	// Check the sequence ID
@@ -190,7 +190,7 @@ Connection.prototype._processCall = function (callID, type, dataBuffer) {
 	}
 	
 	// Get call definition
-	call = Connection._registeredServerCalls[type]
+	call = aP._registeredServerCalls[type]
 	if (!call) {
 		this._protocolError()
 		return
@@ -198,7 +198,7 @@ Connection.prototype._processCall = function (callID, type, dataBuffer) {
 	
 	// Read the incoming data
 	try {
-		data = inflateData(dataBuffer, call[0])
+		data = aP.inflateData(dataBuffer, call[0])
 	} catch (e) {
 		// Invalid format
 		this._protocolError()
@@ -206,7 +206,7 @@ Connection.prototype._processCall = function (callID, type, dataBuffer) {
 	}
 	
 	// Create the answer callback
-	// obj can be an Exception or a Data (or convertable to Data) in the call-return format
+	// obj can be an aP.Exception or a aP.Data (or convertable to Data) in the call-return format
 	// If the connection has already been closed, returns false (true otherwise)
 	answered = false
 	answer = function (obj) {
@@ -215,10 +215,10 @@ Connection.prototype._processCall = function (callID, type, dataBuffer) {
 			throw new Error("Answer already sent")
 		if (!that._ready)
 			return false
-		if (obj instanceof Exception)
+		if (obj instanceof aP.Exception)
 			that._sendAnswer(callID, obj.type, obj.data)
 		else {
-			data = Data.toData(obj)
+			data = aP.Data.toData(obj)
 			if (data.format != call[1].formatString)
 				throw new Error("Invalid data type '"+data.format+"' for return "+type)
 			that._sendAnswer(callID, 0, data)
@@ -232,7 +232,7 @@ Connection.prototype._processCall = function (callID, type, dataBuffer) {
 }
 
 // Process a return
-Connection.prototype._processReturn = function (callID, dataBuffer) {
+aP.prototype._processReturn = function (callID, dataBuffer) {
 	var callInfo, data
 	
 	callInfo = this._calls[callID]
@@ -244,7 +244,7 @@ Connection.prototype._processReturn = function (callID, dataBuffer) {
 	
 	// Read the incoming data
 	try {
-		data = inflateData(dataBuffer, callInfo[0])
+		data = aP.inflateData(dataBuffer, callInfo[0])
 	} catch (e) {
 		// Invalid format
 		this._protocolError()
@@ -262,7 +262,7 @@ Connection.prototype._processReturn = function (callID, dataBuffer) {
 }
 
 // Process a returned exception
-Connection.prototype._processException = function (callID, type, dataBuffer) {
+aP.prototype._processException = function (callID, type, dataBuffer) {
 	var callInfo, data, format
 	
 	callInfo = this._calls[callID]
@@ -273,7 +273,7 @@ Connection.prototype._processException = function (callID, type, dataBuffer) {
 	}
 	
 	// Get exception definition
-	format = Connection._registeredExceptions[type]
+	format = aP._registeredExceptions[type]
 	if (!format) {
 		this._protocolError()
 		return
@@ -281,7 +281,7 @@ Connection.prototype._processException = function (callID, type, dataBuffer) {
 	
 	// Read the incoming data
 	try {
-		data = inflateData(dataBuffer, format)
+		data = aP.inflateData(dataBuffer, format)
 	} catch (e) {
 		// Invalid format
 		this._protocolError()
@@ -299,17 +299,17 @@ Connection.prototype._processException = function (callID, type, dataBuffer) {
 }
 
 // Treats a protocol error (close the connection)
-Connection.prototype._protocolError = function () {
+aP.prototype._protocolError = function () {
 	this.webSocket.close()
 }
 
 // Sends an answer (return or exception)
-Connection.prototype._sendAnswer = function (callID, exceptionType, data) {
+aP.prototype._sendAnswer = function (callID, exceptionType, data) {
 	var meta, length
 	
 	// Creates the buffers
-	meta = (new Data).addUint(0).addUint(callID).addUint(exceptionType)
-	length = (new Data).addUint(meta.buffer.length+data.buffer.length)
+	meta = (new aP.Data).addUint(0).addUint(callID).addUint(exceptionType)
+	length = (new aP.Data).addUint(meta.buffer.length+data.buffer.length)
 	
 	// Send the message
 	this.webSocket.send(length.addData(meta).addData(data).toBuffer())

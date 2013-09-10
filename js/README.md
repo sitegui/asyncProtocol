@@ -4,13 +4,13 @@ A JavaScript implementation for the asyncProtocol in the browser
 # How to use it
 Include all these files: Connection.js, Data.js, DataArray.js, DataBuffer.js, Exception.js, inflateData.js, inflateFormat.js, Token.js
 ```javascript
-var CC_ADD = Connection.registerClientCall(1, "ii", "i")
+var CC_ADD = aP.registerClientCall(1, "ii", "i")
 
-var conn = new Connection("ws://localhost/8002")
+var conn = new aP("ws://localhost/8002")
 
 conn.onopen = function () {
 	console.log("Connection oppened")
-	conn.sendCall(CC_ADD, new Data().addInt(12).addInt(13), function (data) {
+	conn.sendCall(CC_ADD, new aP.Data().addInt(12).addInt(13), function (data) {
 		console.log("12+13="+data)
 		conn.close()
 	})
@@ -23,13 +23,13 @@ conn.onclose = function () {
 
 # Connection
 
-## new Connection(socket, [isClient])
+## new aP(socket, [isClient])
 
-## Connection.registerServerCall(id, [argsFormat, [returnFormat]])
+## aP.registerServerCall(id, [argsFormat, [returnFormat]])
 
-## Connection.registerClientCall(id, [argsFormat, [returnFormat]])
+## aP.registerClientCall(id, [argsFormat, [returnFormat]])
 
-## Connection.registerException(id, [argsFormat])
+## aP.registerException(id, [argsFormat])
 
 ## ready
 
@@ -43,9 +43,9 @@ conn.onclose = function () {
 
 ## Event: "close()"
 
-# Data
+# aP.Data
 
-## new Data()
+## new aP.Data()
 
 ## addUint(u)
 
@@ -71,18 +71,18 @@ conn.onclose = function () {
 
 ## addStringArray(array)
 
-# DataArray
+# aP.DataArray
 
-## new DataArray(format)
+## new aP.DataArray(format)
 
 ## addData()
 
-# Exception
+# aP.Exception
 
-## new Exception(type, [data])
+## new aP.Exception(type, [data])
 
-# Token
+# aP.Token
 
-## new Token([base])
+## new aP.Token([base])
 
 ## isEqual(token)
