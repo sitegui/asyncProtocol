@@ -2,30 +2,26 @@
 // options is an object to be passed to net.createServer() or tls.createServer(), with the additional property "secure" (a boolean)
 // createPair is a function to create the connection to the asyncProtocol server and return it
 // Example: function () {return net.connect(8001)}
-function Gate(options, createPair) {
-	if (typeof options == "function") {
-		createPair = options
-		options = {secure: false}
-	}
-	this.createPair = createPair
-	return ws.createServer(options, this._getOnconnection())
+function createGate(options, createPair) {
+	if (typeof options == "function")
+		return ws.createServer({secure: false}, _getOnconnection(options))
+	return ws.createServer(options, _getOnconnection(createPair))
 }
 
-module.exports = Gate
+module.exports = createGate
 var ws = require("nodejs-websocket")
 var inflateData = require("./inflateData.js")
 
 function nop() {}
 
 // Returns a listener to treat a new connection
-Gate.prototype._getOnconnection = function () {
-	var that = this
+function _getOnconnection(createPair) {
 	return function (conn) {
 		var pair, oppened, close
 	
 		// Create the local connection
 		oppened = {value: false}
-		pair = that.createPair()
+		pair = createPair()
 		pair.on("connect", function () {
 			oppened.value = true
 			conn.sendText("connected")
@@ -48,15 +44,15 @@ Gate.prototype._getOnconnection = function () {
 		})
 	
 		// Set websocket listener
-		conn.on("binary", that._getOnbinary(oppened, close, pair))
+		conn.on("binary", _getOnbinary(oppened, close, pair))
 	
 		// Set local connection listener
-		pair.on("readable", that._getOnreadable(pair, close, conn))
+		pair.on("readable", _getOnreadable(pair, close, conn))
 	}
 }
 
 // Returns a listener to binary event in the websocket-client end-point
-Gate.prototype._getOnbinary = function (oppened, close, pair) {
+function _getOnbinary(oppened, close, pair) {
 	return function (data) {
 		if (!oppened.value)
 			close()
@@ -70,7 +66,7 @@ Gate.prototype._getOnbinary = function (oppened, close, pair) {
 }
 
 // Returns a listener to readable event in the asyncProtocol-server end-point
-Gate.prototype._getOnreadable = function (pair, close, conn) {
+function _getOnreadable(pair, close, conn) {
 	var cache = new Buffer(0)
 	return function () {
 		var buffer, byteLength, offset, message

@@ -2,11 +2,11 @@
 A JavaScript implementation for the asyncProtocol in the browser
 
 # How to use it
-Include all these files: Connection.js, Data.js, DataArray.js, DataBuffer.js, Exception.js, inflateData.js, inflateFormat.js, Token.js
+Include the file aP.js then Data.js, DataArray.js, DataBuffer.js, Exception.js, inflateData.js, inflateFormat.js, Token.js in any order
 ```javascript
 var CC_ADD = aP.registerClientCall(1, "ii", "i")
 
-var conn = new aP("ws://localhost/8002")
+var conn = new aP("ws://localhost:8002")
 
 conn.onopen = function () {
 	console.log("Connection oppened")
@@ -21,7 +21,8 @@ conn.onclose = function () {
 }
 ```
 
-# Connection
+# aP
+The main object, created by aP.js
 
 ## new aP(socket, [isClient])
 

@@ -1,12 +1,12 @@
 {
   "name": "async-protocol",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "author": "Sitegui <sitegui@sitegui.com.br>",
   "description": "An async, call-return-throw oriented protocol",
   "main": "./index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sitegui/asyncProtocol"
+    "url": "https://github.com/sitegui/asyncProtocol/tree/master/nodejs"
   },
   "keywords": [
     "protocol",
