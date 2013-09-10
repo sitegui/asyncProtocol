@@ -47,7 +47,7 @@ aP.createGate(function () {
 The main object, returned by `require("async-protocol")`
 
 ## new aP(socket, [isClient])
-Creates a new asyncProtocol connection, wrapping an already oppened net (or tls) `socket`.
+Creates a new asyncProtocol connection, wrapping an already opened net (or tls) `socket`.
 `isClient` is a boolean to indicate if the socket represents the client-side (true) or server-side (false, default).
 
 ## aP.registerServerCall(id, [argsFormat, [returnFormat]])
