@@ -67,6 +67,8 @@ Connection.prototype.sendCall = function (type, data, onreturn, onexception, tim
 	var meta, length, interval, call
 	
 	// Validates the data
+	if (!this._ready)
+		throw new Error("The connection isn't ready")
 	call = Connection._registeredClientCalls[type]
 	if (!call)
 		throw new Error("Invalid call type "+type)
@@ -115,12 +117,6 @@ Connection.prototype._getTimeoutCallback = function () {
 			delete that._calls[id]
 		}
 	}
-}
-
-// Inform the connection has been established
-Connection.prototype._onopen = function () {
-	if (this.that.onopen)
-		this.that.onopen.call(this.that)
 }
 
 // Inform the connection has been closed (send -1 exception to every pending call)
@@ -211,11 +207,14 @@ Connection.prototype._processCall = function (callID, type, dataBuffer) {
 	
 	// Create the answer callback
 	// obj can be an Exception or a Data (or convertable to Data) in the call-return format
+	// If the connection has already been closed, returns false (true otherwise)
 	answered = false
 	answer = function (obj) {
 		var data
 		if (answered)
 			throw new Error("Answer already sent")
+		if (!that._ready)
+			return false
 		if (obj instanceof Exception)
 			that._sendAnswer(callID, obj.type, obj.data)
 		else {
@@ -224,7 +223,7 @@ Connection.prototype._processCall = function (callID, type, dataBuffer) {
 				throw new Error("Invalid data type '"+data.format+"' for return "+type)
 			that._sendAnswer(callID, 0, data)
 		}
-		answered = true
+		return answered = true
 	}
 	
 	// Emmits the "call" event

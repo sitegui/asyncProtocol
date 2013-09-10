@@ -6,11 +6,10 @@ var Gate = require("./Gate.js")
 var Connection = require("./Connection.js")
 var Token = require("./Token.js")
 
-module.exports = {
-	Data: Data,
-	DataArray: DataArray,
-	Exception: Exception,
-	Gate: Gate,
-	Connection: Connection,
-	Token: Token
-}
+Connection.Data = Data
+Connection.DataArray = DataArray
+Connection.Exception = Exception
+Connection.Gate = Gate
+Connection.Token = Token
+
+module.exports = Connection

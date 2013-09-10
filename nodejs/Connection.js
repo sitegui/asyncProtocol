@@ -21,6 +21,9 @@ function Connection(socket, isClient) {
 	this.socket.on("readable", this._onreadable)
 	this.socket.on("error", this._onerror)
 	this.socket.on("close", this._onclose)
+	
+	// True if the connection has been closed
+	this._closed = false
 }
 
 // Export and require everything
@@ -63,6 +66,11 @@ Connection.registerException = function (id, dataFormat) {
 	return id
 }
 
+// Returns if the connection has closed
+Object.defineProperty(Connection.prototype, "closed", {get: function () {
+	return this._closed
+}})
+
 // Send a call to the other side
 // type is the call-type id (int)
 // data is the argument data (optional, must be a Data, DataArray or string. Must match the format registered with Connection.registerServerCall or Connection.registerClientCall)
@@ -74,6 +82,8 @@ Connection.prototype.sendCall = function (type, data, onreturn, onexception, tim
 	var registeredCalls, meta, length, interval, call
 	
 	// Validates the data
+	if (this._closed)
+		throw new Error("The connection has already been closed")
 	registeredCalls = this.isClient ? Connection._registeredClientCalls : Connection._registeredServerCalls
 	call = registeredCalls[type]
 	if (!call)
@@ -179,6 +189,7 @@ Connection.prototype._onclose = function () {
 	
 	// Clear everything
 	that._calls = {}
+	that._closed = true
 	that.emit("close")
 }
 
@@ -240,11 +251,14 @@ Connection.prototype._processCall = function (callID, type, dataBuffer) {
 	
 	// Create the answer callback
 	// obj can be an Exception or a Data (or convertable to Data) in the call-return format
+	// If the connection has already been closed, returns false (true otherwise)
 	answered = false
 	answer = function (obj) {
 		var data
 		if (answered)
 			throw new Error("Answer already sent")
+		if (that._closed)
+			return false
 		if (obj instanceof Exception)
 			that._sendAnswer(callID, obj.type, obj.data)
 		else {
@@ -253,7 +267,7 @@ Connection.prototype._processCall = function (callID, type, dataBuffer) {
 				throw new Error("Invalid data type '"+data.format+"' for return "+type)
 			that._sendAnswer(callID, 0, data)
 		}
-		answered = true
+		return answered = true
 	}
 	
 	// Emmits the "call" event
