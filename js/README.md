@@ -57,7 +57,7 @@ Any attempt to answer a call from a closed connection will be silently ignored.
 
 ## sendCall(type, [data, [onreturn, [onexception, [timeout]]]])
 Send a call request to the other side.
-`type` is the call id (previously registered with `aP.registerServerCall` or `aP.registerClientCall`).
+`type` is the call id (previously registered with `aP.registerClientCall`).
 
 `data` is a `aP.Data` object, a `aP.DataArray` object, string or null (default: null).
 It must match the registered format for the arguments call.

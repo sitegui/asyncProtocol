@@ -50,11 +50,12 @@ The main object, returned by `require("async-protocol")`
 Creates a new asyncProtocol connection, wrapping an already opened net (or tls) `socket`.
 `isClient` is a boolean to indicate if the socket represents the client-side (true) or server-side (false, default).
 
-## aP.registerServerCall(id, [argsFormat, [returnFormat]])
+## aP.registerServerCall(id, [argsFormat, [returnFormat, [exceptions]]])
 Registers a valid call that the server can send to clients.
 `id` is a non-zero integer that identifies the call type and it will be returned, so you can use the syntax `var SC_FOO = aP.registerServerCall(7)` to save the id into a constant.
 `argsFormat` is a string representing the type of arguments sent by the server (default: "").
 `returnFormat` is a string representing the type of arguments returned by the client (default: "").
+`exceptions` is an array with the exception types id that this call can throw (default: []).
 
 Examples of format string are:
 * "u": an unsigned integer
@@ -65,7 +66,7 @@ Examples of format string are:
 The types accepted by the protocol are: uint (u), int (i), float (f), token (t) and string (s).
 In an array every element has the same format.
 
-## aP.registerClientCall(id, [argsFormat, [returnFormat]])
+## aP.registerClientCall(id, [argsFormat, [returnFormat, [exceptions]]])
 Same idea from `aP.registerClientCall`, except it register a valid call that clients can send to the server.
 
 ## aP.registerException(id, [argsFormat])

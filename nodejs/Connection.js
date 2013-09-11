@@ -14,6 +14,7 @@ function Connection(socket, isClient) {
 	this._lastSentID = 0
 	
 	// List of calls waiting for an answer
+	// Each element is an array: [callInfo, onreturn, onexception, interval]
 	this._calls = []
 	
 	// Set listeners for socket events
@@ -37,22 +38,24 @@ var Exception = require("./Exception.js")
 util.inherits(Connection, events.EventEmitter)
 
 // Register a new type of call that the server can make
-Connection.registerServerCall = function (id, argsFormat, returnFormat) {
+Connection.registerServerCall = function (id, argsFormat, returnFormat, exceptions) {
 	if (Math.round(id) != id || id < 1)
 		throw new TypeError("id must be a non-zero unsigned integer")
 	if (id in Connection._registeredServerCalls)
 		throw new Error("Unable to register server call "+id+", it has already been registered")
-	Connection._registeredServerCalls[id] = [inflateFormat(argsFormat), inflateFormat(returnFormat)]
+	exceptions = exceptions || []
+	Connection._registeredServerCalls[id] = [inflateFormat(argsFormat), inflateFormat(returnFormat), exceptions]
 	return id
 }
 
 // Register a new type of call that clients can make
-Connection.registerClientCall = function (id, argsFormat, returnFormat) {
+Connection.registerClientCall = function (id, argsFormat, returnFormat, exceptions) {
 	if (Math.round(id) != id || id < 1)
 		throw new TypeError("id must be a non-zero unsigned integer")
 	if (id in Connection._registeredClientCalls)
 		throw new Error("Unable to register client call "+id+", it has already been registered")
-	Connection._registeredClientCalls[id] = [inflateFormat(argsFormat), inflateFormat(returnFormat)]
+	exceptions = exceptions || []
+	Connection._registeredClientCalls[id] = [inflateFormat(argsFormat), inflateFormat(returnFormat), exceptions]
 	return id
 }
 
@@ -109,7 +112,7 @@ Connection.prototype.sendCall = function (type, data, onreturn, onexception, tim
 	
 	// Save info about the sent call
 	// [expectedReturnFormat, onreturn, onexception, interval]
-	this._calls[this._lastSentID] = [call[1], onreturn, onexception, interval]
+	this._calls[this._lastSentID] = [call, onreturn, onexception, interval]
 }
 
 // Close the connection
@@ -118,8 +121,12 @@ Connection.prototype.close = function () {
 }
 
 // Registered calls
+// Each element is an array: [inflatedArgsFormat, inflatedReturnFormat, exceptions]
 Connection._registeredServerCalls = {}
 Connection._registeredClientCalls = {}
+
+// Registered exceptions
+// Each element is an inflated format object
 Connection._registeredExceptions = {}
 
 // Returns a callback to treat the timeout
@@ -127,12 +134,12 @@ Connection.prototype._getTimeoutCallback = function () {
 	var that = this, id = this._lastSentID
 	return function () {
 		call = that._calls[id]
+		delete that._calls[id]
 		if (call) {
 			if (call[3])
 				clearInterval(call[3])
 			if (call[2])
 				call[2].call(that, 0, null)
-			delete that._calls[id]
 		}
 	}
 }
@@ -175,21 +182,24 @@ Connection.prototype._onerror = function (err) {
 
 // Inform the connection has been closed (send -1 exception to every pending call)
 Connection.prototype._onclose = function () {
-	var i, call, that
+	var i, call, calls, that
+	
+	// Clear everything
 	that = this.that
-	for (i in that._calls)
+	calls = that._calls
+	that._calls = {}
+	that._closed = true
+	
+	for (i in calls)
 		// Foreach openned call, dispatch the error exception
-		if (that._calls.hasOwnProperty(i)) {
-			call = that._calls[i]
+		if (calls.hasOwnProperty(i)) {
+			call = calls[i]
 			if (call[3])
 				clearInterval(call[3])
 			if (call[2])
 				call[2].call(that, -1, null)
 		}
 	
-	// Clear everything
-	that._calls = {}
-	that._closed = true
 	that.emit("close")
 }
 
@@ -204,22 +214,26 @@ Connection.prototype._processMessage = function (message) {
 		offset = inflateData.readUint(message, offset, aux)
 		type = aux[0]
 		callID = aux[1]
-	
-		if (type)
-			// A call from the other side
-			this._processCall(callID, type, message.slice(offset))
-		else {
-			offset = inflateData.readUint(message, offset, aux)
-			type = aux[2]
-			if (type)
-				// An exception from the other side
-				this._processException(callID, type, message.slice(offset))
-			else
-				// A return from the other side
-				this._processReturn(callID, message.slice(offset))
-		}
 	} catch (e) {
 		this._protocolError()
+	}
+	
+	if (type)
+		// A call from the other side
+		this._processCall(callID, type, message.slice(offset))
+	else {
+		try {
+			offset = inflateData.readUint(message, offset, aux)
+			type = aux[2]
+		} catch (e) {
+			this._protocolError()
+		}
+		if (type)
+			// An exception from the other side
+			this._processException(callID, type, message.slice(offset))
+		else
+			// A return from the other side
+			this._processReturn(callID, message.slice(offset))
 	}
 }
 
@@ -259,9 +273,11 @@ Connection.prototype._processCall = function (callID, type, dataBuffer) {
 			throw new Error("Answer already sent")
 		if (that._closed)
 			return false
-		if (obj instanceof Exception)
+		if (obj instanceof Exception) {
+			if (call[2].indexOf(obj.type) == -1)
+				throw new Error("Invalid exception "+obj.type+" to call "+type)
 			that._sendAnswer(callID, obj.type, obj.data)
-		else {
+		} else {
 			data = Data.toData(obj)
 			if (data.format != call[1].formatString)
 				throw new Error("Invalid data type '"+data.format+"' for return "+type)
@@ -279,6 +295,7 @@ Connection.prototype._processReturn = function (callID, dataBuffer) {
 	var callInfo, data
 	
 	callInfo = this._calls[callID]
+	delete this._calls[callID]
 	if (!callInfo) {
 		// Received a timeouted (or invalid) answer
 		this._protocolError()
@@ -287,7 +304,7 @@ Connection.prototype._processReturn = function (callID, dataBuffer) {
 	
 	// Read the incoming data
 	try {
-		data = inflateData(dataBuffer, callInfo[0])
+		data = inflateData(dataBuffer, callInfo[0][1])
 	} catch (e) {
 		// Invalid format
 		this._protocolError()
@@ -301,7 +318,6 @@ Connection.prototype._processReturn = function (callID, dataBuffer) {
 	// Call the callback
 	if (callInfo[1])
 		callInfo[1].call(this, data)
-	delete this._calls[callID]
 }
 
 // Process a returned exception
@@ -309,8 +325,14 @@ Connection.prototype._processException = function (callID, type, dataBuffer) {
 	var callInfo, data, format
 	
 	callInfo = this._calls[callID]
+	delete this._calls[callID]
 	if (!callInfo) {
 		// Received a timeouted (or invalid) answer
+		this._protocolError()
+		return
+	}
+	if (callInfo[0][2].indexOf(type) == -1) {
+		// Received an invalid exception type
 		this._protocolError()
 		return
 	}
@@ -338,7 +360,6 @@ Connection.prototype._processException = function (callID, type, dataBuffer) {
 	// Call the callback
 	if (callInfo[2])
 		callInfo[2].call(this, type, data)
-	delete this._calls[callID]
 }
 
 // Treats a protocol error (close the connection)
