@@ -137,7 +137,7 @@ Connection.prototype._getTimeoutCallback = function () {
 		delete that._calls[id]
 		if (call) {
 			if (call[3])
-				clearInterval(call[3])
+				clearTimeout(call[3])
 			if (call[2])
 				call[2].call(that, 0, null)
 		}
@@ -195,7 +195,7 @@ Connection.prototype._onclose = function () {
 		if (calls.hasOwnProperty(i)) {
 			call = calls[i]
 			if (call[3])
-				clearInterval(call[3])
+				clearTimeout(call[3])
 			if (call[2])
 				call[2].call(that, -1, null)
 		}
@@ -313,7 +313,7 @@ Connection.prototype._processReturn = function (callID, dataBuffer) {
 	
 	// Clear the timeout
 	if (callInfo[3])
-		clearInterval(callInfo[3])
+		clearTimeout(callInfo[3])
 	
 	// Call the callback
 	if (callInfo[1])
@@ -355,7 +355,7 @@ Connection.prototype._processException = function (callID, type, dataBuffer) {
 	
 	// Clear the timeout
 	if (callInfo[3])
-		clearInterval(callInfo[3])
+		clearTimeout(callInfo[3])
 	
 	// Call the callback
 	if (callInfo[2])
