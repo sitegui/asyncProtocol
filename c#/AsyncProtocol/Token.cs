@@ -50,10 +50,16 @@ namespace Sitegui.AsyncProtocol {
 		/// <param name="t">The Token to compare to this</param>
 		/// <returns>Return true if both Token are equal</returns>
 		public bool Equals(Token t) {
+			if (t == null)
+				return false;
 			for (int i = 0; i < 16; i++)
 				if (this.Buffer[i] != t.Buffer[i])
 					return false;
 			return true;
+		}
+
+		public override bool Equals(object obj) {
+			return Equals(obj as Token);
 		}
 	}
 }

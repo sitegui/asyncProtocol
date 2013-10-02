@@ -104,12 +104,12 @@ aP.prototype.close = function () {
 
 // Registered calls
 // Each element is an array: [inflatedArgsFormat, inflatedReturnFormat, exceptions]
-Connection._registeredServerCalls = {}
-Connection._registeredClientCalls = {}
+aP._registeredServerCalls = {}
+aP._registeredClientCalls = {}
 
 // Registered exceptions
 // Each element is an inflated format object
-Connection._registeredExceptions = {}
+aP._registeredExceptions = {}
 
 // Returns a callback to treat the timeout
 aP.prototype._getTimeoutCallback = function () {

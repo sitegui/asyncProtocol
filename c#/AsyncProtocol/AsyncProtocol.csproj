@@ -45,7 +45,6 @@
     <Compile Include="Data.cs" />
     <Compile Include="DataArray.cs" />
     <Compile Include="DataBuffer.cs" />
-    <Compile Include="DataTest.cs" />
     <Compile Include="EventSocket.cs" />
     <Compile Include="CallException.cs" />
     <Compile Include="Format.cs" />

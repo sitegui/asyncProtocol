@@ -60,7 +60,7 @@ namespace Sitegui.AsyncProtocol {
 		/// </summary>
 		/// <param name="s">The string to be appended</param>
 		public Data(string s) {
-			Append(s);
+			AddString(s);
 		}
 
 		/// <summary>
@@ -68,7 +68,7 @@ namespace Sitegui.AsyncProtocol {
 		/// </summary>
 		/// <param name="u">An unsigned integer</param>
 		/// <returns>Return itself</returns>
-		public Data Append(ulong u) {
+		public Data AddUint(ulong u) {
 			// Validates the input
 			if (u >= Data.MAX_UINT_8_B)
 				throw new ArgumentOutOfRangeException("Expected a value lower than 2^56");
@@ -114,7 +114,7 @@ namespace Sitegui.AsyncProtocol {
 		/// </summary>
 		/// <param name="i">A signed integer</param>
 		/// <returns>Return itself</returns>
-		public Data Append(long i) {
+		public Data AddInt(long i) {
 			int length;
 	
 			// Validates the input
@@ -179,7 +179,7 @@ namespace Sitegui.AsyncProtocol {
 		/// </summary>
 		/// <param name="f">A float</param>
 		/// <returns>Return itself</returns>
-		public Data Append(float f) {
+		public Data AddFloat(float f) {
 			byte[] data = BitConverter.GetBytes(f);
 			if (!BitConverter.IsLittleEndian)
 				Array.Reverse(data);
@@ -193,7 +193,7 @@ namespace Sitegui.AsyncProtocol {
 		/// </summary>
 		/// <param name="t">A Token instance</param>
 		/// <returns>Return itself</returns>
-		public Data Append(Token t) {
+		public Data AddToken(Token t) {
 			Buffer.Append(t.Buffer);
 			Format += "t";
 			return this;
@@ -204,10 +204,10 @@ namespace Sitegui.AsyncProtocol {
 		/// </summary>
 		/// <param name="s">A string</param>
 		/// <returns>Return itself</returns>
-		public Data Append(string s) {
+		public Data AddString(string s) {
 			string format = Format;
 			byte[] data = Encoding.UTF8.GetBytes(s);
-			Append((ulong)data.Length);
+			AddUint((ulong)data.Length);
 			Buffer.Append(data);
 			Format = format + "s";
 			return this;
@@ -218,9 +218,9 @@ namespace Sitegui.AsyncProtocol {
 		/// </summary>
 		/// <param name="a">An array of Data object as a DataArray object</param>
 		/// <returns>Return itself</returns>
-		public Data Append(DataArray a) {
+		public Data AddDataArray(DataArray a) {
 			string format = Format;
-			Append((ulong)a.Length);
+			AddUint((ulong)a.Length);
 			Buffer.Append(a.Buffer);
 			Format = format + "(" + a.Format + ")";
 			return this;
@@ -231,7 +231,7 @@ namespace Sitegui.AsyncProtocol {
 		/// </summary>
 		/// <param name="data">Another Data object</param>
 		/// <returns>Return itself</returns>
-		public Data Append(Data data) {
+		public Data AddData(Data data) {
 			Buffer.Append(data.Buffer);
 			Format += data.Format;
 			return this;
@@ -242,11 +242,11 @@ namespace Sitegui.AsyncProtocol {
 		/// </summary>
 		/// <param name="array">An array of unsigned integers</param>
 		/// <returns>Return itself</returns>
-		public Data Append(ulong[] array) {
+		public Data AddUintArray(ulong[] array) {
 			string format = Format;
-			Append((ulong)array.Length);
+			AddUint((ulong)array.Length);
 			for (int i = 0; i < array.Length; i++)
-				Append(array[i]);
+				AddUint(array[i]);
 			Format = format + "(u)";
 			return this;
 		}
@@ -256,11 +256,11 @@ namespace Sitegui.AsyncProtocol {
 		/// </summary>
 		/// <param name="array">An array of signed integers</param>
 		/// <returns>Return itself</returns>
-		public Data Append(long[] array) {
+		public Data AddIntArray(long[] array) {
 			string format = Format;
-			Append((ulong)array.Length);
+			AddUint((ulong)array.Length);
 			for (int i = 0; i < array.Length; i++)
-				Append(array[i]);
+				AddInt(array[i]);
 			Format = format + "(i)";
 			return this;
 		}
@@ -270,11 +270,11 @@ namespace Sitegui.AsyncProtocol {
 		/// </summary>
 		/// <param name="array">An array of floats</param>
 		/// <returns>Return itself</returns>
-		public Data Append(float[] array) {
+		public Data AddFloatArray(float[] array) {
 			string format = Format;
-			Append((ulong)array.Length);
+			AddUint((ulong)array.Length);
 			for (int i = 0; i < array.Length; i++)
-				Append(array[i]);
+				AddFloat(array[i]);
 			Format = format + "(f)";
 			return this;
 		}
@@ -284,11 +284,11 @@ namespace Sitegui.AsyncProtocol {
 		/// </summary>
 		/// <param name="array">An array of Token instances</param>
 		/// <returns>Return itself</returns>
-		public Data Append(Token[] array) {
+		public Data AddTokenArray(Token[] array) {
 			string format = Format;
-			Append((ulong)array.Length);
+			AddUint((ulong)array.Length);
 			for (int i = 0; i < array.Length; i++)
-				Append(array[i]);
+				AddToken(array[i]);
 			Format = format + "(t)";
 			return this;
 		}
@@ -298,11 +298,11 @@ namespace Sitegui.AsyncProtocol {
 		/// </summary>
 		/// <param name="array">An array of strings</param>
 		/// <returns>Return itself</returns>
-		public Data Append(string[] array) {
+		public Data AddStringArray(string[] array) {
 			string format = Format;
-			Append((ulong)array.Length);
+			AddUint((ulong)array.Length);
 			for (int i = 0; i < array.Length; i++)
-				Append(array[i]);
+				AddString(array[i]);
 			Format = format + "(s)";
 			return this;
 		}

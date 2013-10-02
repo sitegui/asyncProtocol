@@ -250,8 +250,10 @@ namespace Sitegui {
 				IsReady = false;
 
 				// Abort threads
-				readThread.Abort();
-				writeThread.Abort();
+				if (readThread != null)
+					readThread.Abort();
+				if (writeThread != null)
+					writeThread.Abort();
 
 				// Dispose internal resources
 				if (disposing) {

@@ -33,7 +33,7 @@ namespace Sitegui.AsyncProtocol {
 		/// </summary>
 		/// <param name="data">The object do append</param>
 		/// <returns>Return itself</returns>
-		public DataArray Append(Data data) {
+		public DataArray AddData(Data data) {
 			if (Format != data.Format)
 				throw new FormatException("Data element must match the DataArray format: '" + data.Format + "' was given, '" + Format + "' was expected");
 			Buffer.Append(data.Buffer);

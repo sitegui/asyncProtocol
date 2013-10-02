@@ -104,7 +104,7 @@ namespace Sitegui.AsyncProtocol {
 		/// <param name="id">The unique id for this exception</param>
 		/// <param name="dataFormat">The string format for this exception</param>
 		/// <returns></returns>
-		public static uint RegisterException(uint id, string dataFormat) {
+		public static uint RegisterException(uint id, string dataFormat = "") {
 			if (id == 0)
 				throw new ArgumentException("id must be non-zero");
 			if (GetException(id) != null)

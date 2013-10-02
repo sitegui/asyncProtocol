@@ -22,7 +22,7 @@ namespace Sitegui.AsyncProtocol {
 		int Offset;
 
 		/// <summary>
-		/// Create a new view for the given buffer
+		/// Create a new view for a slice of the given buffer
 		/// </summary>
 		/// <param name="buffer">The buffer as a byte array</param>
 		/// <param name="offset">Where to start the view</param>
@@ -41,6 +41,12 @@ namespace Sitegui.AsyncProtocol {
 		public BufferView() : this(new byte[0], 0, 0) { }
 
 		/// <summary>
+		/// Create a new view for the given buffer
+		/// </summary>
+		/// <param name="buffer">The buffer as a byte array</param>
+		public BufferView(byte[] buffer) : this(buffer, 0, buffer.Length) { }
+
+		/// <summary>
 		/// Clone a given view
 		/// </summary>
 		/// <param name="buffer">The old object to clone</param>
@@ -52,7 +58,11 @@ namespace Sitegui.AsyncProtocol {
 		/// <param name="i">The index of the desired byte</param>
 		/// <returns>Return the byte at the given virtual position</returns>
 		public byte this[int i] {
-			get { return Buffer[Offset + i]; }
+			get {
+				if (i < 0 || i >= Length)
+					throw new IndexOutOfRangeException();
+				return Buffer[Offset + i];
+			}
 		}
 
 		/// <summary>
@@ -102,6 +112,7 @@ namespace Sitegui.AsyncProtocol {
 				throw new ArgumentException("Invalid size");
 			BufferView r = new BufferView(Buffer, Offset, size);
 			Offset += size;
+			Length -= size;
 			return r;
 		}
 	}

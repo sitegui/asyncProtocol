@@ -100,8 +100,8 @@ namespace Sitegui.AsyncProtocol {
 
 				// Send the answer
 				byte[] binData = data.GetBytes();
-				byte[] binMeta = new Data().Append((ulong)0).Append(CallId).Append(exceptionType).GetBytes();
-				byte[] binLength = new Data().Append((ulong)(binData.Length + binMeta.Length)).GetBytes();
+				byte[] binMeta = new Data().AddUint((ulong)0).AddInt(CallId).AddInt(exceptionType).GetBytes();
+				byte[] binLength = new Data().AddUint((ulong)(binData.Length + binMeta.Length)).GetBytes();
 				Conn.Socket.Write(binLength);
 				Conn.Socket.Write(binMeta);
 				Conn.Socket.Write(binData);
@@ -221,8 +221,8 @@ namespace Sitegui.AsyncProtocol {
 
 			// Create the meta-data
 			byte[] binData = data.GetBytes();
-			byte[] binMeta = new Data().Append(type).Append(++LastSentId).GetBytes();
-			byte[] binLength = new Data().Append((ulong)(binData.Length + binMeta.Length)).GetBytes();
+			byte[] binMeta = new Data().AddUint(type).AddUint(++LastSentId).GetBytes();
+			byte[] binLength = new Data().AddUint((ulong)(binData.Length + binMeta.Length)).GetBytes();
 
 			// Send the call
 			Socket.Write(binLength);
@@ -239,7 +239,7 @@ namespace Sitegui.AsyncProtocol {
 			}
 
 			// Save info about the sent call
-			PendingCalls.AddLast(new PendingCall(type, call, onReturn, onException, interval));
+			PendingCalls.AddLast(new PendingCall(LastSentId, call, onReturn, onException, interval));
 		}
 
 		/// <summary>
