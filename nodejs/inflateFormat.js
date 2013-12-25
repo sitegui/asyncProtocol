@@ -4,7 +4,7 @@ function inflateFormat(format) {
 	
 	format = format || ""
 	
-	if (!format.match(/^[uifts()]*$/))
+	if (!format.match(/^[uiftsBb()]*$/))
 		throw new Error("Invalid format: "+format)
 	
 	r = []

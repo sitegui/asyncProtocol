@@ -150,6 +150,39 @@ inflateData.readString = function (buffer, offset, data) {
 	return offset+length
 }
 
+// Extracts a Buffer from the buffer (a Buffer) from the position offset to the data Array
+// Returns the new offset value or throws in case of error
+inflateData.readBuffer = function (buffer, offset, data) {
+	var length
+	
+	// Gets the buffer length
+	offset = inflateData.readUint(buffer, offset, data)
+	length = data.pop()
+	
+	if (offset+length > buffer.length)
+		throw new Error("Unable to extract Buffer from index "+offset)
+	
+	data.push(buffer.slice(offset, offset+length))
+	return offset+length
+}
+
+// Extracts a boolean from the buffer (a Buffer) from the position offset to the data Array
+// Returns the new offset value or throws in case of error
+inflateData.readBoolean = function (buffer, offset, data) {
+	var byte
+	
+	if (offset+1 > buffer.length)
+		throw new Error("Unable to extract boolean from index "+offset)
+	
+	byte = buffer[offset]
+	
+	if (byte != 0 && byte != 1)
+		throw new Error("Unable to extract boolean from index "+offset)
+	
+	data.push(Boolean(byte))
+	return offset+1
+}
+
 // Extracts an array from the buffer (a Buffer) from the position offset to the data Array
 // format is an Array (or sub-Array) returned by inflateFormat()
 // Returns the new offset value or throws in case of error
@@ -192,8 +225,12 @@ inflateData.readElement = function (buffer, offset, data, format) {
 			offset = inflateData.readFloat(buffer, offset, data)
 		else if (format[i] == "t")
 			offset = inflateData.readToken(buffer, offset, data)
-		else
+		else if (format[i] == "s")
 			offset = inflateData.readString(buffer, offset, data)
+		else if (format[i] == "B")
+			offset = inflateData.readBuffer(buffer, offset, data)
+		else
+			offset = inflateData.readBoolean(buffer, offset, data)
 	}
 	return offset
 }

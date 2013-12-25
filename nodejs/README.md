@@ -63,7 +63,7 @@ Examples of format string are:
 * "s(i)": a string and an array of integers
 * "u(i(i))": an unsigned integer and an array. Every element of this array is an int and an int-array
 
-The types accepted by the protocol are: uint (u), int (i), float (f), token (t) and string (s).
+The types accepted by the protocol are: uint (u), int (i), float (f), token (t), string (s), Buffer (B) and boolean (b).
 In an array every element has the same format.
 
 ## aP.registerClientCall(id, [argsFormat, [returnFormat, [exceptions]]])
@@ -83,7 +83,7 @@ Any attempt to answer a call from a closed connection will be silently ignored.
 Send a call request to the other side.
 `type` is the call id (previously registered with `aP.registerServerCall` or `aP.registerClientCall`).
 
-`data` is a `aP.Data` object, a `aP.DataArray` object, string or null (default: null).
+`data` is a `aP.Data` object, a `aP.DataArray` object, string, boolean or null (default: null).
 It must match the registered format for the arguments call.
 
 `onreturn` is a callback that will be called when the given call is answered by the other side (default: null).
@@ -139,6 +139,12 @@ Adds a `aP.Token` object.
 ## addString(s)
 Adds a string to the bundle.
 
+## addBuffer(B)
+Adds a Buffer to the bundle.
+
+## addBoolean(b)
+Adds a boolean to the bundle.
+
 ## addDataArray(a)
 Adds a `aP.DataArray`.
 
@@ -160,6 +166,12 @@ Appends a array of `aP.Token`.
 ## addStringArray(array)
 Appends a array of strings.
 
+## addBufferArray(array)
+Appends a array of Buffers.
+
+## addBooleanArray(array)
+Appends a array of booleans.
+
 # aP.DataArray
 Represents an array (write-only) in the sense of the protocol. Each element is a `aP.Data` object.
 
@@ -179,7 +191,7 @@ Creates a new exception with the given `type` id and `data` (default: null).
 Represents a token of 16 bytes
 
 ## new aP.Token([base])
-Creates a new token from the base (another token). Default: random token
+Creates a new token from the base (another token or 16-byte buffer). Default: random token
 
 ## isEqual(token)
 Returns if the token is equal to another one

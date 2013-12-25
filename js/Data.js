@@ -15,6 +15,8 @@ aP.Data.toData = function (x) {
 			data.addDataArray(x)
 		else if (typeof x == "string")
 			data.addString(x)
+		else if (typeof x == "boolean")
+			data.addBoolean(x)
 		else if (x !== null && x !== undefined)
 			throw new TypeError("Invalid type to convert to coded Buffer")
 		return data
@@ -174,6 +176,22 @@ aP.Data.prototype.addData = function (data) {
 	return this
 }
 
+// Appends a Buffer to the data
+aP.Data.prototype.addBuffer = function (B) {
+	var format = this.format
+	this.addUint(B.length)
+	this.buffer.append(B)
+	this.format = format+"B"
+	return this
+}
+
+// Appends a boolean to the data
+aP.Data.prototype.addBoolean = function (b) {
+	this.buffer.append(b ? 1 : 0)
+	this.format += "b"
+	return this
+}
+
 // Appends an Array of unsigned integer
 aP.Data.prototype.addUintArray = function (array) {
 	var i, format = this.format
@@ -221,6 +239,26 @@ aP.Data.prototype.addStringArray = function (array) {
 	for (i=0; i<array.length; i++)
 		this.addString(array[i])
 	this.format = format+"(s)"
+	return this
+}
+
+// Appends an Array of Buffer
+aP.Data.prototype.addBufferArray = function (array) {
+	var i, format = this.format
+	this.addUint(array.length)
+	for (i=0; i<array.length; i++)
+		this.addBuffer(array[i])
+	this.format = format+"(B)"
+	return this
+}
+
+// Appends an Array of boolean
+aP.Data.prototype.addBooleanArray = function (array) {
+	var i, format = this.format
+	this.addUint(array.length)
+	for (i=0; i<array.length; i++)
+		this.addBoolean(array[i])
+	this.format = format+"(b)"
 	return this
 }
 
