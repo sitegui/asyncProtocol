@@ -1,6 +1,6 @@
 {
   "name": "async-protocol",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "author": "Sitegui <sitegui@sitegui.com.br>",
   "description": "An async, call-return-throw oriented protocol",
   "main": "./index.js",
@@ -13,7 +13,7 @@
     "async"
   ],
   "dependencies": {
-  	"nodejs-websocket": "0.1.x"
+    "nodejs-websocket": "0.1.x"
   },
   "license": "GPL",
   "engines": {

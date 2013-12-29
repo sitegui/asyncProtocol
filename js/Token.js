@@ -1,3 +1,6 @@
+/*global aP*/
+"use strict"
+
 // Creates a new token
 // If base (a aP.Token or Uint8Array) is given, copy its contents
 // If not, creates a new random token

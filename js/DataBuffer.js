@@ -1,3 +1,6 @@
+/*global aP*/
+"use strict"
+
 // Creates a resizable Uint8Array with the given initial length
 // length can be omitted, in this case 128 will be used
 aP.DataBuffer = function (length) {

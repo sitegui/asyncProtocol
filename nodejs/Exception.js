@@ -1,3 +1,5 @@
+"use strict"
+
 // Creates a new protocol exception, with the given type (int) e data
 // data (optional) must be a Data, DataArray or string
 // data must match the format registered with Connection.registerException

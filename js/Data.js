@@ -1,3 +1,6 @@
+/*global aP*/
+"use strict"
+
 // Creates a new aP.Data object to store encoded data in the protocol format
 aP.Data = function () {
 	this.buffer = new aP.DataBuffer

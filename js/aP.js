@@ -1,3 +1,5 @@
+"use strict"
+
 // Creates a new WebSocket connection with the asyncProtocol
 // Events: open(), call(type, data, answer), close()
 function aP(url) {
@@ -115,7 +117,7 @@ aP._registeredExceptions = {}
 aP.prototype._getTimeoutCallback = function () {
 	var that = this, id = this._lastSentID
 	return function () {
-		call = that._calls[id]
+		var call = that._calls[id]
 		delete that._calls[id]
 		if (call) {
 			if (call[3])
@@ -135,6 +137,9 @@ aP.prototype._onclose = function () {
 	calls = that._calls
 	that._calls = {}
 	that._ready = false
+	if (that.onclose)
+		that.onclose.call(that)
+	
 	for (i in calls)
 		// Foreach openned call, dispatch the error exception
 		if (calls.hasOwnProperty(i)) {
@@ -144,9 +149,6 @@ aP.prototype._onclose = function () {
 			if (call[2])
 				call[2].call(that, -1, null)
 		}
-	
-	if (that.onclose)
-		that.onclose.call(that)
 }
 
 // Process the incoming message (a MessageEvent)
@@ -238,7 +240,8 @@ aP.prototype._processCall = function (callID, type, dataBuffer) {
 				throw new Error("Invalid data type '"+data.format+"' for return "+type)
 			that._sendAnswer(callID, 0, data)
 		}
-		return answered = true
+		answer = true
+		return true
 	}
 	
 	// Emmits the "call" event

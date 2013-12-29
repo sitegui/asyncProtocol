@@ -1,3 +1,5 @@
+"use strict"
+
 // Creates a new Data object to store encoded data in the protocol format
 function Data() {
 	this.buffer = new DataBuffer

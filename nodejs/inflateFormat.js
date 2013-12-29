@@ -1,3 +1,5 @@
+"use strict"
+
 // Returns an Array representing a data format
 function inflateFormat(format) {
 	var i, level, c, child, parent, r

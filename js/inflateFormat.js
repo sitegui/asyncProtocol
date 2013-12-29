@@ -1,3 +1,6 @@
+/*global aP*/
+"use strict"
+
 // Returns an Array representing a data format
 aP.inflateFormat = function (format) {
 	var i, level, c, child, parent, r

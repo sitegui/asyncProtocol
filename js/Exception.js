@@ -1,3 +1,6 @@
+/*global aP*/
+"use strict"
+
 // Creates a new protocol exception, with the given type (int) e data
 // data (optional) must be a aP.Data, aP.DataArray or string
 // data must match the format registered with aP.registerException

@@ -1,3 +1,5 @@
+"use strict"
+
 // Creates a new DataArray with the given format for each element
 function DataArray(format) {
 	this.buffer = new DataBuffer

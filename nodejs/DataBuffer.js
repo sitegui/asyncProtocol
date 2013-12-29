@@ -1,3 +1,5 @@
+"use strict"
+
 // Creates a resizable Buffer with the given initial length
 // length can be omitted, in this case 128 will be used
 function DataBuffer(length) {

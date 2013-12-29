@@ -1,3 +1,5 @@
+"use strict"
+
 // Wrap a given socket connection with the asyncProtocol
 // isClient is a bool that indicates if this is the client-side (true) or server-side (false)
 // Events: call(type, data, answer), close()
@@ -133,7 +135,7 @@ Connection._registeredExceptions = {}
 Connection.prototype._getTimeoutCallback = function () {
 	var that = this, id = this._lastSentID
 	return function () {
-		call = that._calls[id]
+		var call = that._calls[id]
 		delete that._calls[id]
 		if (call) {
 			if (call[3])
@@ -177,8 +179,7 @@ Connection.prototype._onreadable = function () {
 }
 
 // Let the connection be closed
-Connection.prototype._onerror = function (err) {
-}
+Connection.prototype._onerror = function () {}
 
 // Inform the connection has been closed (send -1 exception to every pending call)
 Connection.prototype._onclose = function () {
@@ -189,6 +190,7 @@ Connection.prototype._onclose = function () {
 	calls = that._calls
 	that._calls = {}
 	that._closed = true
+	that.emit("close")
 	
 	for (i in calls)
 		// Foreach openned call, dispatch the error exception
@@ -199,8 +201,6 @@ Connection.prototype._onclose = function () {
 			if (call[2])
 				call[2].call(that, -1, null)
 		}
-	
-	that.emit("close")
 }
 
 // Process the incoming message (a Buffer)
@@ -283,7 +283,8 @@ Connection.prototype._processCall = function (callID, type, dataBuffer) {
 				throw new Error("Invalid data type '"+data.format+"' for return "+type)
 			that._sendAnswer(callID, 0, data)
 		}
-		return answered = true
+		answer = true
+		return true
 	}
 	
 	// Emmits the "call" event

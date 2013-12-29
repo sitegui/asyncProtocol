@@ -1,3 +1,5 @@
+"use strict"
+
 // Creates a gate wrapping a websocket connection
 // options is an object to be passed to net.createServer() or tls.createServer(), with the additional property "secure" (a boolean)
 // createPair is a function to create the connection to the asyncProtocol server and return it

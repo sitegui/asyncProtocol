@@ -1,4 +1,7 @@
 // Require and export all external objects
+
+"use strict"
+
 var Data = require("./Data.js")
 var DataArray = require("./DataArray.js")
 var Exception = require("./Exception.js")

@@ -1,3 +1,5 @@
+"use strict"
+
 // Creates a new token
 // If base (a Token or Buffer) is given, copy its contents
 // If not, creates a new random token

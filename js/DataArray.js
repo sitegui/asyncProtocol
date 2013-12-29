@@ -1,3 +1,6 @@
+/*global aP*/
+"use strict"
+
 // Creates a new aP.DataArray with the given format for each element
 aP.DataArray = function (format) {
 	this.buffer = new aP.DataBuffer

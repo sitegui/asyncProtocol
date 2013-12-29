@@ -1,3 +1,5 @@
+"use strict"
+
 // Inflates a given data based on its format
 // buffer is a Buffer
 // format is a InflatedFormat
@@ -187,7 +189,7 @@ inflateData.readBoolean = function (buffer, offset, data) {
 // format is an Array (or sub-Array) returned by inflateFormat()
 // Returns the new offset value or throws in case of error
 inflateData.readArray = function (buffer, offset, data, format) {
-	var length, i, subdata
+	var length, i, subdata, array
 	
 	// Gets the array length
 	offset = inflateData.readUint(buffer, offset, data)

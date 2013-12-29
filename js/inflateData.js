@@ -1,3 +1,6 @@
+/*global aP*/
+"use strict"
+
 // Inflates a given data based on its format
 // buffer is a Uint8Array
 // format is a InflatedFormat
@@ -193,7 +196,7 @@ aP.inflateData.readBoolean = function (buffer, offset, data) {
 // format is an Array (or sub-Array) returned by aP.inflateFormat()
 // Returns the new offset value or throws in case of error
 aP.inflateData.readArray = function (buffer, offset, data, format) {
-	var length, i, subdata
+	var length, i, subdata, array
 	
 	// Gets the array length
 	offset = aP.inflateData.readUint(buffer, offset, data)

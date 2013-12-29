@@ -1,3 +1,5 @@
+"use strict"
+
 var aP = require("./index.js")
 var net = require("net")
 
@@ -13,20 +15,20 @@ net.createServer(function (conn) {
 	conn.on("call", function (type, data, answer) {
 		console.log("New call", data[0])
 		switch (type) {
-			case CC_ADD:
-				answer(new aP.Data().addInt(data[0]+data[1]))
-				break
-			case CC_DIV:
-				setTimeout(function () {
-					if (data[1] == 0)
-						answer(new aP.Exception(E_DIV_ZERO))
-					else
-						answer(new aP.Data().addFloat(data[0]/data[1]))
-				}, Math.random()*200)
-				break
-			case CC_CONCAT:
-				answer(data.join(" + "))
-				break
+		case CC_ADD:
+			answer(new aP.Data().addInt(data[0]+data[1]))
+			break
+		case CC_DIV:
+			setTimeout(function () {
+				if (data[1] == 0)
+					answer(new aP.Exception(E_DIV_ZERO))
+				else
+					answer(new aP.Data().addFloat(data[0]/data[1]))
+			}, Math.random()*200)
+			break
+		case CC_CONCAT:
+			answer(data.join(" + "))
+			break
 		}
 	})
 	conn.on("close", function () {
