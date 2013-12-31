@@ -147,8 +147,8 @@ aP.inflateData.readString = function (buffer, offset, data) {
 	
 	// Read from UTF-8 bytes
 	str = ""
-	for (i=0; i<buffer.length; i++) {
-		c = buffer[i]
+	for (i=0; i<length; i++) {
+		c = buffer[offset+i]
 		if (c < 128)
 			str += c==0x25 ? "%25" : String.fromCharCode(c)
 		else
