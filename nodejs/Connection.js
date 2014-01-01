@@ -117,9 +117,9 @@ Connection.prototype.sendCall = function (type, data, onreturn, onexception, tim
 	this._calls[this._lastSentID] = [call, onreturn, onexception, interval]
 }
 
-// Close the connection
+// Close the connection (don't wait for more data)
 Connection.prototype.close = function () {
-	this.socket.end()
+	this.socket.destroy()
 }
 
 // Registered calls
