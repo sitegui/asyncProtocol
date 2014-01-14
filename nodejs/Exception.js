@@ -1,23 +1,10 @@
 "use strict"
 
-// Creates a new protocol exception, with the given type (int) e data
-// data (optional) must be a Data, DataArray or string
-// data must match the format registered with Connection.registerException
-function Exception(type, data) {
-	var format
-	
-	// Validates the data format
-	data = Data.toData(data)
-	format = Connection._registeredExceptions[type]
-	if (!format)
-		throw new Error("Invalid exception type "+type)
-	if (data.format != format.formatString)
-		throw new Error("Invalid data type '"+format.formatString+"' for exception "+type)
-	
-	this.type = type
+// Creates a new protocol exception, with the given name (string) and data
+// data must match the format registered in the connection context
+function Exception(name, data) {
+	this.name = name
 	this.data = data
 }
 
 module.exports = Exception
-var Data = require("./Data.js")
-var Connection = require("./Connection.js")

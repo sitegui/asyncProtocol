@@ -2,31 +2,36 @@
 
 // Creates a new Data object to store encoded data in the protocol format
 function Data() {
-	this.buffer = new DataBuffer
-	this.format = ""
+	this.buffer = new Buffer(128) // a resizable buffer
+	this.length = 0 // number of used bytes
 }
 
 module.exports = Data
-var DataBuffer = require("./DataBuffer.js")
-var DataArray = require("./DataArray.js")
 
-// Transform a Data, DataArray, string, boolean, null or undefined into a Data object
-Data.toData = function (x) {
-	var data
-	if (x instanceof Data)
-		return x
-	else {
-		data = new Data
-		if (x instanceof DataArray)
-			data.addDataArray(x)
-		else if (typeof x == "string")
-			data.addString(x)
-		else if (typeof x == "boolean")
-			data.addBoolean(x)
-		else if (x !== null && x !== undefined)
-			throw new TypeError("Invalid type to convert to coded Buffer")
-		return data
+// Makes sure there is enough free space to allocate the given amount of bytes
+Data.prototype.alloc = function (amount) {
+	var newBuffer
+	if (this.length+amount > this.buffer.length) {
+		newBuffer = new Buffer(this.buffer.length*2)
+		this.buffer.copy(newBuffer, 0, 0, this.length)
+		this.buffer = newBuffer
+		this.alloc(amount)
 	}
+}
+
+// Appends a byte (uint8 in a number) to the internal buffer
+// Automatically increase the internal buffer size if needed
+Data.prototype.append = function (x) {
+	if (typeof x === "number") {
+		this.alloc(1)
+		this.buffer.writeUInt8(x, this.length)
+		this.length++
+	} else if (x instanceof Buffer) {
+		this.alloc(x.length)
+		x.copy(this.buffer, this.length)
+		this.length += x.length
+	} else
+		throw new TypeError("number or Buffer expected")
 }
 
 // Appends a unsigned integer to the data
@@ -37,37 +42,36 @@ Data.prototype.addUint = function (u) {
 	
 	// First byte
 	if (u <= Data.MAX_UINT_1_B) {
-		this.buffer.append(Data.OFFSET_1_B+(u&Data.MASK_7_B))
+		this.append(Data.OFFSET_1_B+(u&Data.MASK_7_B))
 		u = 0
 	} else if (u <= Data.MAX_UINT_2_B) {
-		this.buffer.append(Data.OFFSET_2_B+(u&Data.MASK_6_B))
+		this.append(Data.OFFSET_2_B+(u&Data.MASK_6_B))
 		u >>= 6
 	} else if (u <= Data.MAX_UINT_3_B) {
-		this.buffer.append(Data.OFFSET_3_B+(u&Data.MASK_5_B))
+		this.append(Data.OFFSET_3_B+(u&Data.MASK_5_B))
 		u >>= 5
 	} else if (u <= Data.MAX_UINT_4_B) {
-		this.buffer.append(Data.OFFSET_4_B+(u&Data.MASK_4_B))
+		this.append(Data.OFFSET_4_B+(u&Data.MASK_4_B))
 		u >>= 4
 	} else if (u <= Data.MAX_UINT_5_B) {
-		this.buffer.append(Data.OFFSET_5_B+(u>Data.MAX_INT ? u%_POWS2[3] : u&Data.MASK_3_B))
+		this.append(Data.OFFSET_5_B+(u>Data.MAX_INT ? u%_POWS2[3] : u&Data.MASK_3_B))
 		u = u>Data.MAX_INT ? Math.floor(u/8) : u>>3
 	} else if (u <= Data.MAX_UINT_6_B) {
-		this.buffer.append(Data.OFFSET_6_B+(u%_POWS2[2]))
+		this.append(Data.OFFSET_6_B+(u%_POWS2[2]))
 		u = Math.floor(u/4)
 	} else if (u <= Data.MAX_UINT_7_B) {
-		this.buffer.append(Data.OFFSET_7_B+(u%_POWS2[1]))
+		this.append(Data.OFFSET_7_B+(u%_POWS2[1]))
 		u = Math.floor(u/2)
 	} else {
-		this.buffer.append(Data.OFFSET_8_B)
+		this.append(Data.OFFSET_8_B)
 	}
 	
 	// Other bytes
 	while (u) {
-		this.buffer.append(u>Data.MAX_INT ? u%_POWS2[8] : u&Data.MASK_8_B)
+		this.append(u>Data.MAX_INT ? u%_POWS2[8] : u&Data.MASK_8_B)
 		u = u>Data.MAX_INT ? Math.floor(u/256) : u>>8
 	}
 	
-	this.format += "u"
 	return this
 }
 
@@ -82,181 +86,90 @@ Data.prototype.addInt = function (i) {
 	// First byte
 	if (i >= Data.MIN_INT_1_B && i < -Data.MIN_INT_1_B) {
 		i -= Data.MIN_INT_1_B
-		this.buffer.append(Data.OFFSET_1_B+(i&Data.MASK_7_B))
+		this.append(Data.OFFSET_1_B+(i&Data.MASK_7_B))
 		i = 0
 		length = 0
 	} else if (i >= Data.MIN_INT_2_B && i < -Data.MIN_INT_2_B) {
 		i -= Data.MIN_INT_2_B
-		this.buffer.append(Data.OFFSET_2_B+(i&Data.MASK_6_B))
+		this.append(Data.OFFSET_2_B+(i&Data.MASK_6_B))
 		i >>= 6
 		length = 1
 	} else if (i >= Data.MIN_INT_3_B && i < -Data.MIN_INT_3_B) {
 		i -= Data.MIN_INT_3_B
-		this.buffer.append(Data.OFFSET_3_B+(i&Data.MASK_5_B))
+		this.append(Data.OFFSET_3_B+(i&Data.MASK_5_B))
 		i >>= 5
 		length = 2
 	} else if (i >= Data.MIN_INT_4_B && i < -Data.MIN_INT_4_B) {
 		i -= Data.MIN_INT_4_B
-		this.buffer.append(Data.OFFSET_4_B+(i&Data.MASK_4_B))
+		this.append(Data.OFFSET_4_B+(i&Data.MASK_4_B))
 		i >>= 4
 		length = 3
 	} else if (i >= Data.MIN_INT_5_B && i < -Data.MIN_INT_5_B) {
 		i -= Data.MIN_INT_5_B
-		this.buffer.append(Data.OFFSET_5_B+(i > Data.MAX_INT ? i%_POWS2[3] : i&Data.MASK_3_B))
+		this.append(Data.OFFSET_5_B+(i > Data.MAX_INT ? i%_POWS2[3] : i&Data.MASK_3_B))
 		i = i > Data.MAX_INT ? Math.floor(i/8) : i>>3
 		length = 4
 	} else if (i >= Data.MIN_INT_6_B && i < -Data.MIN_INT_6_B) {
 		i -= Data.MIN_INT_6_B
-		this.buffer.append(Data.OFFSET_6_B+(i%_POWS2[2]))
+		this.append(Data.OFFSET_6_B+(i%_POWS2[2]))
 		i = Math.floor(i/4)
 		length = 5
 	} else {
 		i -= Data.MIN_INT_7_B
-		this.buffer.append(Data.OFFSET_7_B+(i%_POWS2[1]))
+		this.append(Data.OFFSET_7_B+(i%_POWS2[1]))
 		i = Math.floor(i/2)
 		length = 6
 	}
 	
 	// Other bytes
 	while (length--) {
-		this.buffer.append(i>Data.MAX_INT ? i%_POWS2[8] : i&Data.MASK_8_B)
+		this.append(i>Data.MAX_INT ? i%_POWS2[8] : i&Data.MASK_8_B)
 		i = i>Data.MAX_INT ? Math.floor(i/256) : i>>8
 	}
 	
-	this.format += "i"
 	return this
 }
 
 // Appends a float to the data
 Data.prototype.addFloat = function (f) {
-	var buffer = new Buffer(4)
-	buffer.writeFloatLE(f, 0)
-	this.buffer.append(buffer)
-	this.format += "f"
+	this.alloc(4)
+	this.buffer.writeFloatLE(f, this.length)
+	this.length += 4
 	return this
 }
 
 // Appends a Token to the data
 Data.prototype.addToken = function (t) {
-	this.buffer.append(t.buffer)
-	this.format += "t"
+	this.append(t.buffer)
 	return this
 }
 
 // Appends a string to the data
 Data.prototype.addString = function (s) {
-	var buffer = new Buffer(s), format = this.format
-	this.addUint(buffer.length)
-	this.buffer.append(buffer)
-	this.format = format+"s"
-	return this
-}
-
-// Appends a DataArray to the data
-Data.prototype.addDataArray = function (a) {
-	var format = this.format
-	this.addUint(a.length)
-	this.buffer.append(a.buffer)
-	this.format = format+"("+a.format+")"
-	return this
-}
-
-// Appends another Data to this
-Data.prototype.addData = function (data) {
-	this.buffer.append(data.buffer)
-	this.format += data.format
+	var length = Buffer.byteLength(s)
+	this.addUint(length)
+	this.alloc(length)
+	this.buffer.write(s, this.length, length)
+	this.length += length
 	return this
 }
 
 // Appends a Buffer to the data
 Data.prototype.addBuffer = function (B) {
-	var format = this.format
 	this.addUint(B.length)
-	this.buffer.append(B)
-	this.format = format+"B"
+	this.append(B)
 	return this
 }
 
 // Appends a boolean to the data
 Data.prototype.addBoolean = function (b) {
-	this.buffer.append(b ? 1 : 0)
-	this.format += "b"
-	return this
-}
-
-// Appends an Array of unsigned integer
-Data.prototype.addUintArray = function (array) {
-	var i, format = this.format
-	this.addUint(array.length)
-	for (i=0; i<array.length; i++)
-		this.addUint(array[i])
-	this.format = format+"(u)"
-	return this
-}
-
-// Appends an Array of signed integer
-Data.prototype.addIntArray = function (array) {
-	var i, format = this.format
-	this.addUint(array.length)
-	for (i=0; i<array.length; i++)
-		this.addInt(array[i])
-	this.format = format+"(i)"
-	return this
-}
-
-// Appends an Array of float
-Data.prototype.addFloatArray = function (array) {
-	var i, format = this.format
-	this.addUint(array.length)
-	for (i=0; i<array.length; i++)
-		this.addFloat(array[i])
-	this.format = format+"(f)"
-	return this
-}
-
-// Appends an Array of Token
-Data.prototype.addTokenArray = function (array) {
-	var i, format = this.format
-	this.addUint(array.length)
-	for (i=0; i<array.length; i++)
-		this.addToken(array[i])
-	this.format = format+"(t)"
-	return this
-}
-
-// Appends an Array of string
-Data.prototype.addStringArray = function (array) {
-	var i, format = this.format
-	this.addUint(array.length)
-	for (i=0; i<array.length; i++)
-		this.addString(array[i])
-	this.format = format+"(s)"
-	return this
-}
-
-// Appends an Array of Buffer
-Data.prototype.addBufferArray = function (array) {
-	var i, format = this.format
-	this.addUint(array.length)
-	for (i=0; i<array.length; i++)
-		this.addBuffer(array[i])
-	this.format = format+"(B)"
-	return this
-}
-
-// Appends an Array of boolean
-Data.prototype.addBooleanArray = function (array) {
-	var i, format = this.format
-	this.addUint(array.length)
-	for (i=0; i<array.length; i++)
-		this.addBoolean(array[i])
-	this.format = format+"(b)"
+	this.append(b ? 1 : 0)
 	return this
 }
 
 // Returns a Buffer with all the data stored
 Data.prototype.toBuffer = function () {
-	return this.buffer.buffer.slice(0, this.buffer.length)
+	return this.buffer.slice(0, this.length)
 }
 
 // Stores 2^i from i=0 to i=56

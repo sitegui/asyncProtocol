@@ -4,203 +4,245 @@ A nodejs implementation for the asyncProtocol (client+server side and websocket 
 # How to use it
 Install with `npm install async-protocol` or put all files in a folder called "async-protocol", and:
 ```javascript
+"use strict"
+
 var aP = require("async-protocol")
 var net = require("net")
 
-var CC_ADD = aP.registerClientCall(1, "ii", "i")
+// Create a new async-protocol context
+var cntxt = new aP
 
-// Sum server at port 8001: a, b -> a+b
-net.createServer(function (conn) {
-	console.log("Server: new connection")
-	conn = new aP(conn)
-	conn.on("call", function (type, data, answer) {
-		console.log("Server: call received")
-		if (type == CC_ADD)
-			answer(new aP.Data().addInt(data[0]+data[1]))
+// Register all possible calls (name, args and return)
+cntxt.registerClientCall("#1 add(a: int, b: int) -> result: int")
+cntxt.registerClientCall("#2 stringInfo(str: string) -> chars[]: (char: string, count: uint), length: uint")
+cntxt.registerClientCall("#3 div(n: int, d: int) -> result: float")
+cntxt.registerException("#1 divByZero")
+
+// Simple add function
+cntxt.on("add", function (conn, data, answer) {
+	console.log("[Server]", "call received")
+	answer({result: data.a+data.b})
+})
+
+// More complex return
+cntxt.on("stringInfo", function (conn, data, answer) {
+	var chars = {}, i, c
+	for (i=0; i<data.str.length; i++) {
+		c = data.str[i]
+		if (!(c in chars))
+			chars[c] = 0
+		chars[c]++
+	}
+	
+	var ans = {length: data.str.length, chars: []}
+	for (c in chars)
+		ans.chars.push({char: c, count: chars[c]})
+	answer(ans)
+})
+
+// Async and throw example
+cntxt.on("div", function (conn, data, answer) {
+	if (data.d == 0)
+		answer(new aP.Exception("divByZero"))
+	else
+		setTimeout(function () {
+			// Answer after a while (simulate a fs or db requests)
+			answer({result: data.n/data.d})
+		}, 3e3)
+})
+
+// Create a basic net server
+var server = net.createServer().listen(8001)
+
+// Wrap it with the protocol
+cntxt.wrapServer(server, function (conn) {
+	console.log("[Server]", "new connection")
+	conn.once("close", function () {
+		console.log("[Server]", "connection closed")
 	})
-	conn.on("close", function () {
-		console.log("Server: connection closed")
-	})
-}).listen(8001)
+})
 
 // Test the server after 1s
 setTimeout(function () {
-	console.log("Client: start test")
+	console.log("[Client]", "start connection")
 	var conn = net.connect(8001, function () {
-		console.log("Client: connected")
-		conn = new aP(conn, true)
-		conn.sendCall(CC_ADD, new aP.Data().addInt(12).addInt(13), function (data) {
-			console.log("Client: received", data)
-			conn.close()
+		console.log("[Client]", "connected")
+		
+		// Wrap it with the protocol
+		conn = cntxt.wrapSocket(conn)
+		conn.call("add", {a: 12, b: 13}, function (err, result) {
+			console.log("[Client]", "[add]", result)
+		})
+		conn.call("stringInfo", {str: "Hello World!"}, function (err, result) {
+			console.log("[Client]", "[stringInfo]", result)
+		})
+		conn.call("div", {n: 17, d: 0}, function (err, result) {
+			if (err) {
+				console.log("[Client]", "[div]", err)
+				conn.close()
+			}
 		})
 	})
 }, 1e3)
 
-// WebSocket gate (let browser communicate with the async-server using port 8002)
-aP.createGate(function () {
-	console.log("Gate: new connection from browser")
-	return net.connect(8001)
+// Example code to create a server that accepts WebSocket connections from a browser, for example
+cntxt.createWSServer(function (conn) {
+	console.log("[WSServer]", "new connection")
+	conn.once("close", function () {
+		console.log("[WSServer]", "connection closed")
+	})
 }).listen(8002)
 ```
 
 # aP
 The main object, returned by `require("async-protocol")`
 
-## new aP(socket, [isClient])
-Creates a new asyncProtocol connection, wrapping an already opened net (or tls) `socket`.
-`isClient` is a boolean to indicate if the socket represents the client-side (true) or server-side (false, default).
+## new aP()
+Create a new protocol context. A context is basically the collection of calls that the protocol accepts and answer
 
-## aP.registerServerCall(id, [argsFormat, [returnFormat, [exceptions]]])
-Registers a valid call that the server can send to clients.
-`id` is a non-zero integer that identifies the call type and it will be returned, so you can use the syntax `var SC_FOO = aP.registerServerCall(7)` to save the id into a constant.
-`argsFormat` is a string representing the type of arguments sent by the server (default: "").
-`returnFormat` is a string representing the type of arguments returned by the client (default: "").
-`exceptions` is an array with the exception types id that this call can throw (default: []).
+## ap.registerServerCall(signature, [callback])
+Register a new call that the server can send to a client
+`signature` is a string (the syntax is described bellow)
+`callback` (optional) will be executed whenever the server sends the registered call. It should accept two arguments:
 
-Examples of format string are:
-* "u": an unsigned integer
-* "ii": two integers
-* "s(i)": a string and an array of integers
-* "u(i(i))": an unsigned integer and an array. Every element of this array is an int and an int-array
+* `args`: the arguments sent by the server (always match the format given by the call signature)
+* `answer`: a callback function that must be called to answer this call. The argument sent to it must match the return format defined by the call signature
 
-The types accepted by the protocol are: uint (u), int (i), float (f), token (t), string (s), Buffer (B) and boolean (b).
-In an array every element has the same format.
+Inside the `callback`, `this` refers to the `aP.Connection` object that received the call
 
-## aP.registerClientCall(id, [argsFormat, [returnFormat, [exceptions]]])
-Same idea from `aP.registerClientCall`, except it register a valid call that clients can send to the server.
+## ap.registerClientCall(signature, [callback])
+Register a new call that a client can send to the server
+`signature` is a string (the syntax is described bellow)
+`callback` (optional) will be executed whenever this registered call is received. It should accept two arguments:
 
-## aP.registerException(id, [argsFormat])
-Register a valid exception. Every call (server-originated or client-originated) can return this exception.
-`id` is a non-zero integer that identifies the exception type and it will be returned, so you can save it into a constant.
-`argsFormat` is the format of the data carried by the exception (default: "")
+* `args`: the arguments sent by the client (always match the format given by the call signature)
+* `answer`: a callback function that must be called to answer this call. The argument sent to it must match the return format defined by the call signature
 
-## closed
-A boolean to tell if the connection has been closed for any reason (normal, lost connection or protocol error).
-Any attempt to send a call with a closed connection will throw an exception.
-Any attempt to answer a call from a closed connection will be silently ignored.
+Inside the `callback`, `this` refers to the `aP.Connection` object that received the call
 
-## sendCall(type, [data, [onreturn, [onexception, [timeout]]]])
-Send a call request to the other side.
-`type` is the call id (previously registered with `aP.registerServerCall` or `aP.registerClientCall`).
+## ap.registerException(signature)
+Register a new type of exception
+`signature` is a string (the syntax is described bellow)
 
-`data` is a `aP.Data` object, a `aP.DataArray` object, string, boolean or null (default: null).
-It must match the registered format for the arguments call.
+There are two special exceptions. They always exist but can't be sent the other side (that means they are raised by the local lib code):
 
-`onreturn` is a callback that will be called when the given call is answered by the other side (default: null).
-It will be passed the a `data` argument, that contains the data return by the other side.
-This `data` has already been extracted from the protocol formats, so uint, int and float turn into number.
-See examples of accessing the values inside it:
-* "u": `data`: number
-* "ii": `data[0]`: number, `data[1]`: number
-* "s(i)": `data[0]`: string, `data[1]`: Array, `data[1][n]`: number
-* "u(i(i))": `data[0]`: number, `data[1]`: Array, `data[1][n]`: Array, `data[1][n][0]`: number, `data[1][n][1]`: Array, `data[1][n][1][m]`: number
+* `"timeout"`: raised when a call takes too long to be answered
+* `"closed"`: raised when the connection is lost before the call is answered
 
-`onexception` is a callback that will be called when the given call is answered with an exception by the other side (default: null).
-It will be passed two arguments: `type` (the exception id) and `data` (same idea from onreturn above).
-Aside from the registered exceptions, two other exceptions exists by default (with a null data):
-* timeout-exception (type=0): the call has been expired. If the answer is received after the timeout, it will be ignored and the connection will be dropped.
-* close-exception (type=-1): the connection has been closed before the call could be answered
+## ap.wrapSocket(socket)
+Wrap a *client* net socket with the async protocol and bind it to this context
+Return a new `aP.Connection` object
 
-`timeout` is the maximum time (in ms) the protocol will wait for a response, 0 means no timeout (default: 60e3).
+## ap.wrapServer(server, [callback])
+Turn a net *server* into a async-protocol server
+`callback` will be added as "asyncConnection" listener
+Whenever a new async connection is accepted, `"asyncConnection(conn)"` is emited (`conn` is a `aP.Connection` object)
 
-## close()
-Close the connection. All pending calls will receive a close-exception (type=-1).
-
-## Event: "call(type, data, answer)"
-Dispatched when the connection receives a valid call from the other side.
-`type` is the call type id.
-`data` contains the data sent by the other side (see the description for `onreturn` parameter for `sendCall` above).
-
-`answer` is a callback that must be called to answer this call. The call doesn't need to be answered right away, since the protocol is asynchronous, so the code is free to read from files, connect to databases, etc.
-`answer` receives one argument. It call be the return data (same idea from `data` argument for `sendCall`) or an `aP.Exception` object.
-
-## Event: "close()"
-Dispatched when the connection is closed, for any reason.
-
-# aP.Data
-Encode data (write-only) in the protocol format and is used to send data with `sendCall` or with `answer` callback on "call" event.
-Every method return the object itself, so you can use this syntax: `var data = new aP.Data().addInt(12).addInt(13)`.
-
-## new aP.Data()
-Creates a new data bundle (initialy empty).
-
-## addUint(u)
-Adds an unsigned integer (0 <= u < 2^53).
-
-## addInt(i)
-Adds a signed integer (-2^53 < u < 2^53).
-
-## addFloat(f)
-Adds a float (single-presicion) value.
-
-## addToken(t)
-Adds a `aP.Token` object.
-
-## addString(s)
-Adds a string to the bundle.
-
-## addBuffer(B)
-Adds a Buffer to the bundle.
-
-## addBoolean(b)
-Adds a boolean to the bundle.
-
-## addDataArray(a)
-Adds a `aP.DataArray`.
-
-## addData(data)
-Appends a `aP.Data` to this one
-
-## addUintArray(array)
-Appends a array of unsigned integers.
-
-## addIntArray(array)
-Appends a array of signed integers.
-
-## addFloatArray(array)
-Appends a array of floats.
-
-## addTokenArray(array)
-Appends a array of `aP.Token`.
-
-## addStringArray(array)
-Appends a array of strings.
-
-## addBufferArray(array)
-Appends a array of Buffers.
-
-## addBooleanArray(array)
-Appends a array of booleans.
-
-# aP.DataArray
-Represents an array (write-only) in the sense of the protocol. Each element is a `aP.Data` object.
-
-## new aP.DataArray(format)
-Creates a new array with the given `format` string for every element (see `aP.registerServerCall` for more about format strings).
-
-## addData(data)
-Appends a new element into the array.
-
-# aP.Exception
-Represents an exception, that will be sent as an answer to a call (see "call" event).
-
-## new aP.Exception(type, [data])
-Creates a new exception with the given `type` id and `data` (default: null).
+## ap.createWSServer([options], [callback])
+Create and return a WebSocket server that accepts async-protocol connections
+`options` is an object to be passed to net.createServer() or tls.createServer(), with the additional property `"secure"` (a boolean)
+`callback` will be added as "asyncConnection" listener
+Whenever a new async connection is made, `"asyncConnection(conn)"` is emited (`conn` is a `aP.Connection` object)
 
 # aP.Token
-Represents a token of 16 bytes
+Represent a token of 16 bytes. Can be used as a general id, even as a unique id
 
 ## new aP.Token([base])
-Creates a new token from the base (another token or 16-byte buffer). Default: random token
+Create a new token from the `base`. If omited, create a pseudo-random token
+`base` can be a 16-byte Buffer, another Token or a hex-encoded 32-byte string
 
-## isEqual(token)
-Returns if the token is equal to another one
+## token.isEqual(obj)
+Return whether this token is equal to the token represented by the given object (another Token, a 16-byte Buffer or a hex-encoded 32-char string)
 
-# aP.createGate([options], createPair)
-Creates a websocket gate. It is necessary to use the protocol from browsers.
-The browser connect to this gate, this gate create a connection to the real asyncProtocol server (see example at the top).
+## token.toString()
+Return the Token as a hex-encoded 32-char string
 
-`options` is an object to be passed to net.createServer() or tls.createServer(), with the additional property "secure" (a boolean)
-`createPair` is a function to create the connection to the asyncProtocol server and return it. Example: `function () {return net.connect(8001)}`
+# aP.Exception
+Represent a exceptional return, like an error. Any call can be answered with an exception that has been registered in the same context as the call.
 
-Returns the server socket, so you can call `.listen()` in it
+## new aP.Exception(name, [data])
+Create a new exception object. `name` is a string and `data` must match the registered format.
+
+The main use is to answer a call with an exception, for example:
+
+For example:
+```javascript
+cntxt.registerClientCall("#17 setAge(value: int)", function (args, answer) {
+	if (args.value < 18)
+		answer(new aP.Exception("invalidAge", {value: args.age}))
+	else {
+		doChangeAge(args.value)
+		answer()
+	}
+})
+cntxt.registerException("#9 invalidAge(value: int)")
+```
+
+## exception.name
+A `string`. Usage example:
+```javascript
+conn.call("setAge", {value: 17}, function (err) {
+	if (err && err.name === "invalidAge")
+		displayAgeError()
+})
+```
+
+## exception.data
+The data carried by the exception object (must match the format registered in the context)
+
+# aP.Connection
+Represent a async-protocol connection.
+
+You never create this object directly, instead they are returned by `ap.wrapSocket`, given by the first argument of `"asyncConnection"` events and by `this` in calls callback.
+
+## connection.call(name, [data, [callback, [timeout]]])
+Send a call to the other side.
+`name` (string) is the call name, as registered in the connection context
+`data` (optional) must match the registered args format
+`callback` (optional) is a function with the format `function (err, result)`. In case of error, `err` is a `aP.Exception` object and `result` will be null. Otherwise, `err` will be null and `result` will bring the call return (following the format registered). The callback is executed only once.
+`timeout` (optional, default:60e3) is the maximum time (in ms) you want to wait for the call to be answered. Zero means never timeout. When the this time is reached, the callback will be executed with the execption "timeout". If the answer is received after the timeout, the connection will be dropped.
+
+If the connection is lost before the answer is received or the timeout, callback will be executed with the exception "closed"
+
+## connection.close()
+End this connection
+
+## connection.closed
+Return whether the connection hasn't been closed yet
+
+## Event: "close()"
+Dispatched when the connection is closed, for any reason
+
+# Signature syntax
+
+## Call signature
+General structure:
+> #{id} {name}({args}) -> {returns}
+
+* `{id}` is a decimal, positive number (>0). It is used as the under the hood identifier and must be the same in both the client and server side
+* `{name}` is the call identifier (must be unique among the calls from the same context and side)
+* `{args}` follow the syntax described bellow (in Format syntax). If the call takes no input, it can be omited: `#{id} {name} -> {returns}`
+* `{returns}` follow the syntax described bellow (in Format syntax). If the call makes no output, it can be omited: `#{id} {name}({args})`
+
+Examples:
+* #17 getSum(a: int, b: int) -> sum:int
+* #2 createUser(name: string, email: string, password: Buffer)
+* #5 getFolders -> folders[]:(name: string, ownerName: string, ownerId: uint)
+* #7 setTags(postId: int, tags[]:string)
+
+## Exception signature
+General structure:
+> #{id} {name}({args})
+
+See Call signature above for details. `{name}` must not be "timeout" nor "closed"
+
+## Format syntax
+General structure:
+> {field}, {field}, ...
+
+`{field}` has three variations:
+* a scalar field: `{name}:{type}`
+* a vector field (every element is simply a scalar): `{name}[]:{type}`
+* a array field (every element has the same, but complex, type): `{name}[]:({field})`
+
+`{type}` must be one of "uint", "int", "float", "string", "token", "Buffer" or "boolean"
