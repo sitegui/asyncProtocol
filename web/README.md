@@ -1,120 +1,67 @@
-# Nodejs asyncProtocol
-A nodejs implementation for the asyncProtocol (client+server side and websocket gate for browser client)
+# JavaScript asyncProtocol
+A JavaScript implementation for the asyncProtocol in the browser
 
 # How to use it
-Install with `npm install async-protocol` or put all files in a folder called "async-protocol", and:
+
+## With browserify
+Install with `npm install async-protocol-web`
+
+## Without browserify
+Include the file "asyncProtocol.min.js"
+
+## Code example
 ```javascript
 "use strict"
 
-var aP = require("async-protocol")
-var net = require("net")
+var aP = require("async-protocol-web")
 
 // Create a new async-protocol context
 var cntxt = new aP
 
 // Register all possible calls (name, args and return)
-cntxt.registerClientCall("#1 add(a: int, b: int) -> result: int", add)
-cntxt.registerClientCall("#2 stringInfo(str: string) -> chars[]: (char: string, count: uint), length: uint", stringInfo)
-cntxt.registerClientCall("#3 div(n: int, d: int) -> result: float", div)
+cntxt.registerClientCall("#1 add(a: int, b: int) -> result: int")
+cntxt.registerClientCall("#2 stringInfo(str: string) -> chars[]: (char: string, count: uint), length: uint")
+cntxt.registerClientCall("#3 div(n: int, d: int) -> result: float")
 cntxt.registerException("#1 divByZero")
 
-// Simple add function
-function add(data, answer) {
-	console.log("[Server]", "call received")
-	answer({result: data.a+data.b})
-}
-
-// More complex return
-function stringInfo(data, answer) {
-	var chars = {}, i, c
-	for (i=0; i<data.str.length; c = data.str[i++])
-		chars[c] = chars[c]+1 || 1
-	
-	var ans = {length: data.str.length, chars: []}
-	for (c in chars)
-		ans.chars.push({char: c, count: chars[c]})
-	answer(ans)
-}
-
-// Async and throw example
-function div(data, answer) {
-	if (data.d == 0)
-		answer(new aP.Exception("divByZero"))
-	else
-		setTimeout(function () {
-			// Answer after a while (simulate a fs or db request)
-			answer({result: data.n/data.d})
-		}, 3e3)
-}
-
-// Create a basic net server
-var server = net.createServer().listen(8001)
-
-// Wrap it with the protocol
-cntxt.wrapServer(server, function (conn) {
-	console.log("[Server]", "new connection")
-	conn.once("close", function () {
-		console.log("[Server]", "connection closed")
+// Create the connection
+var conn = cntxt.connect("ws://localhost:8001")
+conn.onopen = function () {
+	console.log("Connected")
+	conn.call("add", {a: 12, b: 13}, function (err, result) {
+		console.log("[add]", result)
 	})
-})
-
-// Test the server after 1s
-setTimeout(function () {
-	console.log("[Client]", "start connection")
-	var conn = net.connect(8001, function () {
-		console.log("[Client]", "connected")
-		
-		// Wrap it with the protocol
-		conn = cntxt.wrapSocket(conn)
-		conn.call("add", {a: 12, b: 13}, function (err, result) {
-			console.log("[Client]", "[add]", result)
-		})
-		conn.call("stringInfo", {str: "Hello World!"}, function (err, result) {
-			console.log("[Client]", "[stringInfo]", result)
-		})
-		conn.call("div", {n: 17, d: 0}, function (err) {
-			if (err) {
-				console.log("[Client]", "[div]", err)
-				conn.close()
-			}
-		})
+	conn.call("stringInfo", {str: "Hello World!"}, function (err, result) {
+		console.log("[stringInfo]", result)
 	})
-}, 1e3)
-
-// Example code to create a server that accepts WebSockets connections (from a browser for example)
-cntxt.createWSServer(function (conn) {
-	console.log("[WSServer]", "new connection")
-	conn.once("close", function () {
-		console.log("[WSServer]", "connection closed")
+	conn.call("div", {n: 17, d: 0}, function (err) {
+		if (err) {
+			console.log("[div]", err)
+			conn.close()
+		}
 	})
-}).listen(8002)
+}
 ```
 
 # aP
-The main object, returned by `require("async-protocol")`
+The main object, returned by `require("async-protocol-web")`
 
 ## new aP()
 Create a new protocol context. A context is basically the collection of calls that the protocol accepts and answer
 
-## ap.registerServerCall(signature, [callback])
+## ap.registerServerCall(signature, callback)
 Register a new call that the server can send to a client
 `signature` is a string (the syntax is described bellow)
-`callback` (optional) will be executed whenever the server sends the registered call. It should accept two arguments:
+`callback` will be executed whenever the server sends the registered call. It should accept two arguments:
 
 * `args`: the arguments sent by the server (always match the format given by the call signature)
 * `answer`: a callback function that must be called to answer this call. The argument sent to it must match the return format defined by the call signature
 
 Inside the `callback`, `this` refers to the `aP.Connection` object that received the call
 
-## ap.registerClientCall(signature, [callback])
+## ap.registerClientCall(signature)
 Register a new call that a client can send to the server
 `signature` is a string (the syntax is described bellow)
-`callback` (optional) will be executed whenever this registered call is received. It should accept two arguments:
-
-* `args`: the arguments sent by the client (always match the format given by the call signature)
-* `answer`: a callback function that must be called to answer this call. The argument sent to it must match the return format defined by the call signature
-
-Inside the `callback`, `this` refers to the `aP.Connection` object that received the call
 
 ## ap.registerException(signature)
 Register a new type of exception
@@ -125,20 +72,9 @@ There are two special exceptions. They always exist but can't be sent the other 
 * `"timeout"`: raised when a call takes too long to be answered
 * `"closed"`: raised when the connection is lost before the call is answered
 
-## ap.wrapSocket(socket)
-Wrap a *client* net socket with the async protocol and bind it to this context
+## ap.connect(url)
+Create a new async-protocol connection within the context.
 Return a new `aP.Connection` object
-
-## ap.wrapServer(server, [callback])
-Turn a net *server* into a async-protocol server
-`callback` will be added as "asyncConnection" listener
-Whenever a new async connection is accepted, `"asyncConnection(conn)"` is emited (`conn` is a `aP.Connection` object)
-
-## ap.createWSServer([options], [callback])
-Create and return a WebSocket server that accepts async-protocol connections
-`options` is an object to be passed to net.createServer() or tls.createServer(), with the additional property `"secure"` (a boolean)
-`callback` will be added as "asyncConnection" listener
-Whenever a new async connection is made, `"asyncConnection(conn)"` is emited (`conn` is a `aP.Connection` object)
 
 # aP.Token
 Represent a token of 16 bytes. Can be used as a general id, even as a unique id
@@ -163,15 +99,14 @@ The main use is to answer a call with an exception, for example:
 
 For example:
 ```javascript
-cntxt.registerClientCall("#17 setAge(value: int)", function (args, answer) {
-	if (args.value < 18)
-		answer(new aP.Exception("invalidAge", {value: args.age}))
-	else {
-		doChangeAge(args.value)
-		answer()
+cntxt.registerServerCall("#15 getLocation -> location: string", function (args, answer) {
+	try {
+		answer({location: getGeoLocation()})
+	} catch (e) {
+		answer(new aP.Exception("couldNotLocate", {reason: e.toString()}))
 	}
 })
-cntxt.registerException("#9 invalidAge(value: int)")
+cntxt.registerException("#9 couldNotLocate(reason: string)")
 ```
 
 ## exception.name
@@ -189,7 +124,7 @@ The data carried by the exception object (must match the format registered in th
 # aP.Connection
 Represent a async-protocol connection.
 
-You never create this object directly, instead they are returned by `ap.wrapSocket`, given by the first argument of `"asyncConnection"` events and by `this` in calls callback.
+You never create this object directly, instead they are returned by `ap.connect` or referenced by `this` in calls callback.
 
 ## connection.call(name, [data, [callback, [timeout]]])
 Send a call to the other side.
@@ -203,8 +138,11 @@ If the connection is lost before the answer is received or the timeout, callback
 ## connection.close()
 End this connection
 
-## connection.closed
-Return whether the connection hasn't been closed yet
+## connection.ready
+Return whether the connection is ready to process calls
+
+## Event: "opem()"
+Dispatched when the WebSocket is opened
 
 ## Event: "close()"
 Dispatched when the connection is closed, for any reason

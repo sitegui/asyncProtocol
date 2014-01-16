@@ -1,18 +1,12 @@
 "use strict"
 
-// Wrap a given socket connection with the asyncProtocol
-// socket is a wrapped socket (either NetWrapper or WSWrapper)
+// Wrap a given WebSocket connection with the asyncProtocol
 // context is a Context object that will emit events for calls received by this connection
-// isClient is a bool that indicates if this is the client-side (true) or server-side (false)
-// Events: close()
-function Connection(socket, context, isClient) {
+// Events: open(), close()
+function Connection(socket, context) {
 	// Store the underlying socket
 	this._socket = socket
-	this._isClient = Boolean(isClient)
 	this._context = context
-	
-	// Store incoming data
-	this._cache = new Buffer(0)
 	
 	// Store the last received and sent auto-increment ids
 	this._lastReceivedID = 0
@@ -24,26 +18,30 @@ function Connection(socket, context, isClient) {
 	
 	// Set listeners for socket events
 	this._socket.that = this
-	this._socket.onmessage = this._onmessage
+	this._socket.binaryType = "arraybuffer"
 	this._socket.onclose = this._onclose
+	this._socket.onmessage = this._onmessage
+	this._socket.onopen = function () {
+		var that = this.that
+		that._ready = true
+		if (that.onopen)
+			that.onopen.call(that)
+	}
 	
 	// True if the connection has been closed
-	this._closed = false
+	this._ready = false
 }
 
 // Export and require everything
 module.exports = Connection
-var events = require("events")
-var util = require("util")
 var inflateData = require("./inflateData.js")
 var Data = require("./Data.js")
 var Exception = require("./Exception.js")
 var deflateData = require("./deflateData.js")
-util.inherits(Connection, events.EventEmitter)
 
 // Returns if the connection has closed
-Object.defineProperty(Connection.prototype, "closed", {get: function () {
-	return this._closed
+Object.defineProperty(Connection.prototype, "ready", {get: function () {
+	return this._ready
 }})
 
 // Send a call to the other side
@@ -56,20 +54,19 @@ Connection.prototype.call = function (name, data, callback, timeout) {
 	var registeredCalls, meta, interval, call
 	
 	// Validates the data
-	if (this._closed)
-		throw new Error("The connection has already been closed")
-	registeredCalls = this._isClient ? this._context._clientCalls : this._context._serverCalls
+	if (!this._ready)
+		throw new Error("The connection isn't opened")
+	registeredCalls = this._context._clientCalls
 	call = registeredCalls[name]
 	if (!call)
 		throw new Error("Invalid call "+name)
 	data = deflateData(data, call.args)
 	
 	// Creates the protocol meta-data
-	data = data.toBuffer()
-	meta = (new Data).addUint(call.id).addUint(++this._lastSentID).toBuffer()
+	meta = new Data().addUint(call.id).addUint(++this._lastSentID)
 	
 	// Send the message
-	this._socket.send(meta, data)
+	this._socket.send(meta.addData(data).toBuffer())
 	
 	// Set timeout
 	timeout = timeout===undefined ? 60e3 : timeout
@@ -105,8 +102,9 @@ Connection.prototype._onclose = function () {
 	that = this.that
 	calls = that._calls
 	that._calls = {}
-	that._closed = true
-	that.emit("close")
+	that._ready = false
+	if (that.onclose)
+		that.onclose.call(that)
 	
 	for (i in calls)
 		// Foreach openned call, dispatch the error exception
@@ -122,6 +120,7 @@ Connection.prototype._onclose = function () {
 // Process the incoming message (a Buffer)
 Connection.prototype._onmessage = function (message) {
 	var type, callID, that = this.that
+	message = new Uint8Array(message.data)
 	
 	// Extracts the message type and sequence id
 	var state = {buffer: message, offset: 0}
@@ -134,7 +133,7 @@ Connection.prototype._onmessage = function (message) {
 	
 	if (type)
 		// A call from the other side
-		that._processCall(callID, type, message.slice(state.offset))
+		that._processCall(callID, type, message.subarray(state.offset))
 	else {
 		try {
 			type = inflateData.readUint(state)
@@ -143,10 +142,10 @@ Connection.prototype._onmessage = function (message) {
 		}
 		if (type)
 			// An exception from the other side
-			that._processException(callID, type, message.slice(state.offset))
+			that._processException(callID, type, message.subarray(state.offset))
 		else
 			// A return from the other side
-			that._processReturn(callID, message.slice(state.offset))
+			that._processReturn(callID, message.subarray(state.offset))
 	}
 }
 
@@ -161,7 +160,7 @@ Connection.prototype._processCall = function (callID, type, dataBuffer) {
 	}
 	
 	// Get call definition
-	var callInfo = this._isClient ? this._context._serverCalls[type] : this._context._clientCalls[type]
+	var callInfo = this._context._serverCalls[type]
 	if (!callInfo) {
 		this._protocolError()
 		return
@@ -185,7 +184,7 @@ Connection.prototype._processCall = function (callID, type, dataBuffer) {
 		var exceptionInfo
 		if (answered)
 			throw new Error("Answer already sent")
-		if (that._closed)
+		if (!that._ready)
 			return false
 		if (obj instanceof Exception) {
 			exceptionInfo = that._context._exceptions[obj.name]
@@ -277,12 +276,8 @@ Connection.prototype._protocolError = function () {
 
 // Sends an answer (return or exception)
 Connection.prototype._sendAnswer = function (callID, exceptionType, data) {
-	var meta
-	
-	// Creates the buffers
-	data = data.toBuffer()
-	meta = (new Data).addUint(0).addUint(callID).addUint(exceptionType).toBuffer()
+	var meta = new Data().addUint(0).addUint(callID).addUint(exceptionType)
 	
 	// Send the message
-	this._socket.send(meta, data)
+	this._socket.send(meta.addData(data).toBuffer())
 }

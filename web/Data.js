@@ -2,7 +2,7 @@
 
 // Creates a new Data object to store encoded data in the protocol format
 function Data() {
-	this.buffer = new Buffer(128) // a resizable buffer
+	this.buffer = new Uint8Array(128) // a resizable buffer
 	this.length = 0 // number of used bytes
 }
 
@@ -12,8 +12,8 @@ module.exports = Data
 Data.prototype.alloc = function (amount) {
 	var newBuffer
 	if (this.length+amount > this.buffer.length) {
-		newBuffer = new Buffer(this.buffer.length*2)
-		this.buffer.copy(newBuffer, 0, 0, this.length)
+		newBuffer = new Uint8Array(this.buffer.length*2)
+		newBuffer.set(this.buffer.subarray(0, this.length))
 		this.buffer = newBuffer
 		this.alloc(amount)
 	}
@@ -24,14 +24,18 @@ Data.prototype.alloc = function (amount) {
 Data.prototype.append = function (x) {
 	if (typeof x === "number") {
 		this.alloc(1)
-		this.buffer.writeUInt8(x, this.length)
+		this.buffer[this.length] = x
 		this.length++
-	} else if (x instanceof Buffer) {
+	} else if (x instanceof Uint8Array) {
 		this.alloc(x.length)
-		x.copy(this.buffer, this.length)
+		this.buffer.set(x, this.length)
+		this.length += x.length
+	} else if (x instanceof Data) {
+		this.alloc(x.length)
+		this.buffer.set(x.buffer.subarray(0, x.length), this.length)
 		this.length += x.length
 	} else
-		throw new TypeError("number or Buffer expected")
+		throw new TypeError("number or Uint8Array expected")
 }
 
 // Appends a unsigned integer to the data
@@ -133,12 +137,13 @@ Data.prototype.addInt = function (i) {
 // Appends a float to the data
 Data.prototype.addFloat = function (f) {
 	this.alloc(4)
-	this.buffer.writeFloatLE(f, this.length)
+	var view = new DataView(this.buffer.buffer)
+	view.setFloat32(this.length, f, true)
 	this.length += 4
 	return this
 }
 
-// Appends a Token to the data
+// Appends a aP.Token to the data
 Data.prototype.addToken = function (t) {
 	this.append(t._buffer)
 	return this
@@ -146,11 +151,22 @@ Data.prototype.addToken = function (t) {
 
 // Appends a string to the data
 Data.prototype.addString = function (s) {
-	var length = Buffer.byteLength(s)
-	this.addUint(length)
-	this.alloc(length)
-	this.buffer.write(s, this.length, length)
-	this.length += length
+	var buffer, i, h, j
+	
+	// Extract to UTF-8 bytes
+	buffer = new Data
+	for (i=0; i<s.length; i++) {
+		if (s.charCodeAt(i) < 128)
+			buffer.append(s.charCodeAt(i))
+		else {
+			h = encodeURIComponent(s.charAt(i)).substr(1).split("%")
+			for (j=0; j<h.length; j++)
+				buffer.append(parseInt(h[j], 16))
+		}
+	}
+	
+	this.addUint(buffer.length)
+	this.addData(buffer)
 	return this
 }
 
@@ -167,9 +183,15 @@ Data.prototype.addBoolean = function (b) {
 	return this
 }
 
-// Returns a Buffer with all the data stored
+// Appends another Data to this
+Data.prototype.addData = function (data) {
+	this.append(data)
+	return this
+}
+
+// Returns a Uint8Array with all the data stored
 Data.prototype.toBuffer = function () {
-	return this.buffer.slice(0, this.length)
+	return this.buffer.subarray(0, this.length)
 }
 
 // Stores 2^i from i=0 to i=56

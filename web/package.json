@@ -1,19 +1,19 @@
 {
-  "name": "async-protocol",
+  "name": "async-protocol-web",
   "version": "0.2.0",
   "author": "Sitegui <sitegui@sitegui.com.br>",
   "description": "An async, call-return-throw oriented protocol",
   "main": "./index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sitegui/asyncProtocol/tree/master/nodejs"
+    "url": "https://github.com/sitegui/asyncProtocol/tree/master/browser"
   },
   "keywords": [
     "protocol",
-    "async"
+    "async",
+	"browser"
   ],
   "dependencies": {
-    "nodejs-websocket": "0.1.x"
   },
   "license": "MIT",
   "engines": {
