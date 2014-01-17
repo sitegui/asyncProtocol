@@ -44,12 +44,16 @@ function NetWrapper(socket) {
 			} else
 				break
 		}
+		if (cache.length > Context._maxBufferLength)
+			// Buffer overflow
+			that.close()
 	})
 }
 
 module.exports = NetWrapper
 var Data = require("./Data.js")
 var inflateData = require("./inflateData.js")
+var Context = require("./Context.js")
 
 NetWrapper.prototype.close = function () {
 	this._socket.end()

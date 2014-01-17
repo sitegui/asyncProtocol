@@ -93,6 +93,11 @@ cntxt.createWSServer(function (conn) {
 # aP
 The main object, returned by `require("async-protocol")`
 
+## aP.setMaxBufferLength(bytes)
+Set the maximum size the internal Buffer can grow (default: 2MiB)
+If at any time it stays bigger than this, the connection will be closed
+This is a security measure, to avoid memory attacks
+
 ## new aP()
 Create a new protocol context. A context is basically the collection of calls that the protocol accepts and answer
 

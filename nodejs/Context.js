@@ -16,6 +16,15 @@ var ws = require("nodejs-websocket")
 var NetWrapper = require("./NetWrapper.js")
 var WSWrapper = require("./WSWrapper.js")
 
+// Set the maximum internal buffer size for each connection (globally)
+// Any connection that grows over this limit will be closed
+// This is a security measure to avoid memory attacks
+Context.setMaxBufferLength = function(bytes) {
+	ws.setMaxBufferLength(bytes)
+	Context._maxBufferLength = bytes
+}
+Context.setMaxBufferLength(2*1024*1024)
+
 // Register a new type of call that the server can make
 // signature have the syntax described in the file expand.js
 // callback(args, answer) is optional and will be called when this call is received
