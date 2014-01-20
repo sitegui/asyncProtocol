@@ -11,7 +11,7 @@ function NetWrapper(socket) {
 	var that = this
 	this._socket = socket
 	
-	socket.once("close", function () {
+	socket.once("finish", function () {
 		that.onclose.call(that)
 		that.ondata = null
 		that.onclose = null
@@ -46,7 +46,7 @@ function NetWrapper(socket) {
 		}
 		if (cache.length > Context._maxBufferLength)
 			// Buffer overflow
-			that.close()
+			that._socket.destroy()
 	})
 }
 

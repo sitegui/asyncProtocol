@@ -30,7 +30,8 @@ function WSWrapper(socket) {
 			message = message ? Buffer.concat([message, data], message.length+data.length) : data
 		})
 		stream.once("end", function () {
-			that.onmessage.call(that, message)
+			if (that.onmessage)
+				that.onmessage.call(that, message)
 		})
 	})
 }
