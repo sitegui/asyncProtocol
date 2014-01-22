@@ -18,7 +18,7 @@ function NetWrapper(socket) {
 	})
 	
 	// Ignore errors
-	socket.once("error", function () {})
+	socket.on("error", function () {})
 	
 	var cache = new Buffer(0)
 	socket.on("readable", function () {
