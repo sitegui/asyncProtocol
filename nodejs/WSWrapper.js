@@ -19,7 +19,7 @@ function WSWrapper(socket) {
 	})
 	
 	// Ignore errors
-	socket.once("error", function () {})
+	socket.on("error", function () {})
 	
 	// Collect each binary frame and dispatch onmessage
 	socket.on("binary", function (stream) {
