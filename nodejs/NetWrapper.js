@@ -12,7 +12,15 @@ function NetWrapper(socket) {
 	this._socket = socket
 	
 	socket.once("finish", function () {
-		that.onclose.call(that)
+		if (that.onclose)
+			that.onclose.call(that)
+		that.ondata = null
+		that.onclose = null
+	})
+	
+	socket.once("close", function () {
+		if (that.onclose)
+			that.onclose.call(that)
 		that.ondata = null
 		that.onclose = null
 	})
