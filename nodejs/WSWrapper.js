@@ -44,6 +44,8 @@ WSWrapper.prototype.close = function () {
 
 WSWrapper.prototype.send = function (metadata, data) {
 	var stream = this._socket.beginBinary()
-	stream.write(metadata)
-	stream.end(data)
+	if (stream) {
+		stream.write(metadata)
+		stream.end(data)
+	}
 }
