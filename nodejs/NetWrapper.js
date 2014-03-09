@@ -42,7 +42,7 @@ function NetWrapper(socket) {
 			} catch (e) {
 				// We need to wait for more data
 				if (!(e instanceof RangeError))
-					that._protocolError()
+					that._close()
 				break
 			}
 			if (cache.length >= state.offset+length) {
